@@ -71,7 +71,7 @@ alwaysApply: true
 
 ### BDD/SDD 开发流程
 
-参考 `docs/bdd-sdd/XS-AI文档编写指南.md` 和 `docs/bdd-sdd/XS-开发指南与AI协作流程.md`：
+参考 `.cursor/rules/XS-AI文档编写指南.md`：
 
 1.  **写需求（BDD）**: User Story + Given/When/Then 场景
 2.  **写规范（SDD）**: 数据结构、API 契约、事件契约、错误语义
@@ -81,170 +81,9 @@ alwaysApply: true
 **文档存放位置**：
 
 - 项目特定文档应放在项目目录下的 `docs/` 目录中，与 `src/` 同级
-    - 基础设施包：`libs/infrastructures/<package-name>/docs/`
-    - 通用契约包：`libs/contracts/<package-name>/docs/`
-    - 领域包：`libs/domains/<package-name>/docs/`
-    - 应用：`apps/<app-name>/docs/`
-- 全局技术文档放在 `docs/bdd-sdd/` 和 `.cursor/docs/`
+- 全局技术文档放在 `docs/spec-plan/` 和 `.cursor/docs/`
 
-### 环境变量配置
 
-#### fastify-api
-
-- `PORT`: 默认 3000
-- `DB_ENABLED`: 是否启用数据库
-- `PLUGINS_ENABLED`: 启用的插件列表（逗号分隔）
-- `SWAGGER_ENABLED`: 是否启用 Swagger（开发环境默认 true）
-- `REDIS_URL`: Redis 连接字符串
-- `DATABASE_URL`: PostgreSQL 连接字符串
-
-#### platform-api
-
-- `PORT`: 默认 3100
-- `DB_ENABLED`: 是否启用数据库
-- `IAM_ADMIN_ENABLED`: 是否启用 IAM 管理接口
-- `IAM_ADMIN_USER_IDS`: IAM 管理员用户 ID 白名单（逗号分隔）
-- `SWAGGER_ENABLED`: 是否启用 Swagger（开发环境默认 true）
-- `REDIS_URL`: Redis 连接字符串
-- `DATABASE_URL`: PostgreSQL 连接字符串
-
-## Platform API 使用指南
-
-### RBAC 管理接口
-
-所有 RBAC 管理接口都需要认证和租户上下文。
-
-**创建角色**:
-
-```bash
-curl -X POST "http://localhost:3100/rbac/roles" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "x-tenant-id: $TENANT_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"tenant_admin","description":"租户管理员"}'
-```
-
-**创建权限**:
-
-```bash
-curl -X POST "http://localhost:3100/rbac/permissions" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "x-tenant-id: $TENANT_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"manage","subjectType":"Project","effect":"allow"}'
-```
-
-**绑定权限到角色**:
-
-```bash
-curl -X POST "http://localhost:3100/rbac/roles/$ROLE_ID/permissions" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "x-tenant-id: $TENANT_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"permissionId":"'"$PERMISSION_ID"'"}'
-```
-
-**绑定角色到用户**:
-
-```bash
-curl -X POST "http://localhost:3100/rbac/users/$USER_ID/roles" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "x-tenant-id: $TENANT_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"roleId":"'"$ROLE_ID"'"}'
-```
-
-### 引导期初始化
-
-**初始化 tenant_admin（幂等）**:
-
-```bash
-curl -X POST "http://localhost:3100/rbac/bootstrap/tenant-admin" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "x-tenant-id: $TENANT_ID"
-```
-
-**注意**: 引导期接口需要配置 `IAM_ADMIN_ENABLED=true` 和 `IAM_ADMIN_USER_IDS`
-
-### 租户邀请管理
-
-**邀请用户加入当前租户**:
-
-```bash
-curl -X POST "http://localhost:3100/tenant/invitations" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "x-tenant-id: $TENANT_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"invitedUserId":"u-001"}'
-```
-
-**流程**:
-
-1.  写入 membership 记录
-2.  写入 outbox 事件
-3.  Worker 异步发送通知
-
-## 代码风格指南
-
-### 导入顺序和风格
-
-导入应按以下特定顺序排列：
-
-1.  **Node.js 内置模块** (path, crypto 等)
-2.  **@nestjs/common** - 装饰器和异常
-3.  **@nestjs/core** - 核心 NestJS 功能
-4.  **@nestjs/xxx** - 其他 NestJS 模块 (config, platform-fastify 等)
-5.  **@mikro-orm/xxx** - MikroORM 导入
-6.  **内部包导入** (@oksai/\*)
-7.  **本地导入** (相对路径导入)
-8.  **仅类型导入** (type-only imports，如果需要)
-
-```typescript
-// ✅ 正确
-import { randomUUID } from 'crypto';
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository, wrap } from '@mikro-orm/core';
-import { JwtPayload } from '@oksai/contracts';
-import { LoginDto } from './dto';
-import type { IUserRepository } from './interfaces';
-
-// ❌ 错误
-import { Injectable, InjectRepository } from '@nestjs/common';
-import { EntityRepository } from '@mikro-orm/core';
-import { randomUUID } from 'crypto';
-```
-
-### 格式化规则
-
-使用 Prettier 配置的设置（在 `.prettierrc` 中配置）：
-
-- 打印宽度：120
-- 单引号：true
-- 分号：true
-- 使用 Tab 缩进（tab 宽度：4）
-- 无尾随逗号
-- 引号属性：按需使用
-
-```typescript
-// ✅ 正确
-@Injectable()
-export class AuthService {
-	constructor(
-		@InjectRepository(User)
-		private readonly userRepo: EntityRepository<User>
-	) {}
-}
-
-// ❌ 错误（尾随逗号）
-@Injectable()
-export class AuthService {
-	constructor(
-		@InjectRepository(User),
-		private readonly userRepo: EntityRepository<User>,
-	) {}
-}
-```
 
 ### TypeScript 类型定义
 
@@ -777,7 +616,6 @@ describe('UserService', () => {
 2.  **使用 DTO 进行输入验证**（配合 class-validator）
 3.  **对多步骤操作使用事务**
 4.  **处理边界情况** - null 检查、空数组等
-5.  **使用 NestJS Logger 记录重要操作**，日志消息使用中文
 6.  **绝不记录敏感数据** - 密码、令牌等
 7.  **使用环境变量进行配置**
 8.  **保持方法简洁专注** - 单一职责
@@ -787,109 +625,8 @@ describe('UserService', () => {
 12. **核心业务逻辑测试覆盖率达到 80% 以上**
 13. **优先重用 `@oksai` 项目的代码，不要重复造轮子**
 14. **多租户安全**: tenantId 必须来自服务端上下文（CLS），禁止客户端透传覆盖
-15. **事件驱动**: 跨模块协作优先使用 Outbox/Inbox 模式，确保至少一次投递 + 幂等消费
-16. **权限检查**: 使用 `@CheckAbility()` 装饰器 + CASL，硬编码兜底，禁止前端传递权限参数
-17. **错误处理**: 使用 NestJS 内置异常 + RFC7807 Problem Details，错误消息使用中文
-18. **日志规范**: 日志必须包含 tenantId、userId、requestId、eventId 等关键字段，不记录敏感信息
 
-```typescript
-// ✅ 正确 - 最佳实践示例
-@Injectable()
-export class UserService {
-	constructor(
-		private readonly logger: Logger,
-		@InjectRepository(User)
-		private readonly userRepo: EntityRepository<User>
-	) {}
 
-	/**
-	 * 根据邮箱查找用户
-	 *
-	 * @param email - 用户邮箱地址
-	 * @returns 用户（如果找到），否则返回 null
-	 */
-	async findByEmail(email: string): Promise<User | null> {
-		this.logger.debug(`正在查找邮箱为 ${email} 的用户`);
-		return await this.userRepo.findOne({ email });
-	}
-
-	/**
-	 * 创建新用户
-	 *
-	 * @param userData - 用户创建数据
-	 * @returns 已创建的用户
-	 * @throws BadRequestException 如果邮箱已存在
-	 */
-	async create(userData: CreateUserDto): Promise<User> {
-		const existing = await this.findByEmail(userData.email);
-		if (existing) {
-			this.logger.warn(`邮箱为 ${userData.email} 的用户已存在`);
-			throw new BadRequestException('此邮箱已被使用');
-		}
-
-		const user = this.userRepo.create(userData);
-		await this.em.persistAndFlush(user);
-		this.logger.log(`已创建新用户：${user.id}`);
-		return user;
-	}
-}
-
-// ❌ 错误
-@Injectable()
-export class UserService {
-	constructor(@InjectRepository(User) private repo) {}
-
-	async findByEmail(e) {
-		return await this.repo.findOne({ e });
-	}
-
-	async create(data) {
-		return await this.repo.create(data);
-	}
-}
-```
-
-## 项目结构说明
-
-- **apps/**: 应用层
-    - `fastify-api`: 演示和基础功能 API
-    - `platform-api`: 平台管理 API
-- **libs/infrastructures/**: 基础设施层
-    - 包含 app-kit、config、context、db、exceptions、health、i18n、logger、plugin、redis 等
-- **libs/contracts/**: 通用契约层（ports/types/pure utils/shared models）
-    - 包含 constants、contracts 等
-- **libs/domains/**: 领域层
-    - 包含 iam、audit、communication、health 等
-- 每个包都有自己的 `package.json`，包含 build/test/lint 脚本
-- 所有包使用 `tsc -p tsconfig.lib.json` 或 `tsc -p tsconfig.build.json` 进行构建
-- 测试使用 Jest，配置在各包的 `package.json` 中
-- 单元测试文件与被测文件同目录，命名为 `{filename}.spec.ts`
-
-## 技术文档索引
-
-### 核心文档
-
-- `docs/bdd-sdd/XS-开发指南与AI协作流程.md`: BDD/SDD 开发流程
-- `docs/bdd-sdd/multi-tenancy.md`: 多租户实现文档
-- `docs/bdd-sdd/XS-多租户事件驱动机制.md`: 事件驱动架构
-- `docs/bdd-sdd/XS-权限管理技术方案（CASL）.md`: 权限管理
-- `docs/bdd-sdd/XS-消息与邮件通知技术方案.md`: 消息通知
-
-### 配置文档
-
-- `.cursor/docs/XS-模块系统与TypeScript配置策略.md`: 模块系统与 TS 配置
-- `.cursor/docs/XS-插件系统技术方案.md`: 插件系统
-- `.cursor/docs/XS-技术设计方案.md`: 整体技术设计
-- `.cursor/docs/XS-app-kit使用指南.md`: app-kit 使用指南
-
-### 培训教程
-
-- `docs/bdd-sdd/XS-MikroORM迁移与数据库连接（培训教程）.md`: MikroORM 迁移教程
-
-### AI 编程指南
-
-- `docs/bdd-sdd/ai-coding-guide.md`: AI 编程指南
-- `docs/bdd-sdd/database-audit-trail.md`: 数据库审计跟踪
 
 ## 重要提示
 

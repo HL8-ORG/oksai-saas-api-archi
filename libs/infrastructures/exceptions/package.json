@@ -1,5 +1,5 @@
 {
-	"name": "@oksai/logger",
+	"name": "@oksai/exceptions",
 	"version": "0.1.0",
 	"private": true,
 	"type": "commonjs",
@@ -22,13 +22,6 @@
 		"@nestjs/core": "catalog:",
 		"nestjs-pino": "catalog:",
 		"pino": "catalog:"
-	},
-	"devDependencies": {
-		"@types/jest": "^30.0.0",
-		"@types/node": "^22.10.7",
-		"pino-pretty": "catalog:",
-		"jest": "^30.0.0",
-		"ts-jest": "^29.2.5"
 	},
 	"jest": {
 		"moduleFileExtensions": [

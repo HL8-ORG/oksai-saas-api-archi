@@ -1,5 +1,5 @@
 {
-	"name": "@oksai/logger",
+	"name": "@oksai/redis",
 	"version": "0.1.0",
 	"private": true,
 	"type": "commonjs",
@@ -20,15 +20,10 @@
 	"dependencies": {
 		"@nestjs/common": "catalog:",
 		"@nestjs/core": "catalog:",
-		"nestjs-pino": "catalog:",
-		"pino": "catalog:"
-	},
-	"devDependencies": {
-		"@types/jest": "^30.0.0",
-		"@types/node": "^22.10.7",
-		"pino-pretty": "catalog:",
-		"jest": "^30.0.0",
-		"ts-jest": "^29.2.5"
+		"@nestjs/config": "catalog:",
+		"@oksai/config": "workspace:*",
+		"ioredis": "catalog:",
+		"redlock": "catalog:"
 	},
 	"jest": {
 		"moduleFileExtensions": [

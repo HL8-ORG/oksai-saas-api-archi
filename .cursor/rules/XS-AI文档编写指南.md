@@ -90,10 +90,7 @@ alwaysApply: true
 
 **文档位置规则**：
 
-- 基础设施包（`libs/infrastructures/*`）：文档放在 `libs/<package-name>/docs/`
-- 共享包（`libs/shared/*`）：文档放在 `libs/<package-name>/docs/`
-- 领域包（`libs/domains/*`）：文档放在 `libs/<package-name>/docs/`
-- 应用（`apps/*`）：文档放在 `apps/<app-name>/docs/`
+遵循文档跟项目的原则，文档放在相应项目目录下的 `docs/` 目录中，与 `src/` 同级
 
 **必须包含**：
 
@@ -112,7 +109,7 @@ alwaysApply: true
 **文档位置规则**：
 
 - 与需求文档（BDD）放在同一个文件中，按章节组织
-- 同样遵循项目目录下的 `docs/` 放置规则
+- 同样遵循文档跟项目的原则，文档放在相应项目目录下的 `docs/` 目录中，与 `src/` 同级
 
 **规范至少覆盖**：
 

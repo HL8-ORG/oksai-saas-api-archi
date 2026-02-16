@@ -12,7 +12,14 @@ const appConfig = registerAppConfig('app', () => ({
 	imports: [
 		setupLoggerModule({
 			level: process.env.LOG_LEVEL ?? 'info',
-			pretty: process.env.NODE_ENV === 'development',
+			pretty: (process.env.NODE_ENV ?? 'development') === 'development',
+			prettyOptions: {
+				colorize: true,
+				timeFormat: 'HH:MM:ss.l',
+				singleLine: false,
+				errorLikeObjectKeys: ['err', 'error'],
+				ignore: 'pid,hostname'
+			},
 			customProps: (req) => ({
 				tenantId: (req as any).tenantId,
 				userId: (req as any).userId,
