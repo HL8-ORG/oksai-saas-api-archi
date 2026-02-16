@@ -25,6 +25,10 @@
 - **可观测性**：完整的事件追踪和审计能力
 - **多租户隔离**：租户级的数据和上下文隔离
 
+补充说明（插件机制定位）：
+- 本项目的“插件”指**启动期装配（Composition-time）**：插件以 Nest `Module/DynamicModule` 形式参与组装，随应用启动加载/随应用退出释放。
+- 本项目**不考虑运行时热插拔**（不需要也不建议在运行中动态替换 DI 组件）。
+
 ### 1.2 架构全景图
 
 ```
@@ -643,6 +647,22 @@ export class GetTenantListHandler implements IQueryHandler<GetTenantListQuery, T
 - **数据访问隔离**：所有仓储/读模型查询必须强制带 `tenantId` 过滤；禁止默认“全局”查询。
 - **审计**：跨租户访问尝试必须记录安全日志（至少包含 requestId、tenantId、目标资源、操作者）。
 
+### 6.5.7 【强约束】插件化扩展约束（启动期装配）
+
+本节约束用于“插件机制”的安全落地，避免插件破坏依赖边界与多租户安全。
+
+- **插件形式**：插件必须以 Nest `Module/DynamicModule` 形式提供，并在应用启动期通过统一装配模块加载（参见 `libs/composition/app-kit` 规划）。
+- **生命周期**：插件如需初始化/释放资源，应提供：
+  - `onPluginBootstrap()`：启动阶段初始化（例如注册订阅、预热缓存）
+  - `onPluginDestroy()`：退出阶段释放（例如断开连接、停止定时任务）
+- **边界要求**：
+  - 插件不得绕过 `Application/Domain` 边界直接访问数据库/外部系统（必须通过端口/适配器层实现）
+  - 插件不得在 `Domain` 层引入框架依赖（保持领域纯净）
+- **事件订阅扩展（推荐路径）**：
+  - 插件可通过“集成事件订阅者（Integration Event Subscriber）”扩展平台能力（通知、审计、投影、外部同步等）
+  - 必须满足：tenantId 不可被覆盖、消费幂等、超时与重试策略可配置、日志字段完整（tenantId/userId/requestId/eventId）
+- **启用方式**：插件启用通过环境变量选择（例如 `PLUGINS_ENABLED=demo,metrics`），并在启动时 fail-fast（未知插件名直接报错）。
+
 ---
 
 ## 七、【强约束】代码组织规范
@@ -673,8 +693,12 @@ oksai-saas-api-archi/
 │   │   ├── exceptions/                     # @oksai/exceptions：统一异常/错误码
 │   │   ├── context/                        # @oksai/context：CLS(tenantId/requestId/userId)
 │   │   ├── messaging/                      # @oksai/messaging：事件总线（当前提供 InMemory 实现）
+│   │   └── plugin/                         # @oksai/plugin：插件元数据与生命周期（规划/待实现）
 │   │   ├── redis/                          # @oksai/redis：缓存/分布式锁
 │   │   └── i18n/                           # @oksai/i18n：国际化
+│   │
+│   ├── composition/                        # 装配层（可复用的应用组合）
+│   │   └── app-kit/                        # @oksai/app-kit：统一装配（规划/待实现）
 │   │
 │   └── domains/                            # 业务域（每个 context 可独立演进/拆服务）
 │       ├── tenant/                         # bounded context 示例
@@ -697,6 +721,7 @@ oksai-saas-api-archi/
 - **依赖方向**：`apps` / `libs/**/infrastructure` 只能依赖 `application/domain`；`domain` 不依赖任何框架实现。
 - **按上下文切分**：每个 `libs/domains/<context>` 必须可独立演进（未来可拆微服务）。
 - **横切能力沉淀**：日志/配置/上下文/异常/消息等统一放在 `libs/shared/*`，禁止在各上下文重复造轮子与口径。
+- **统一装配**：API/Worker 应用应优先使用 `@oksai/app-kit` 统一装配 shared 能力，并通过插件机制按需启用可组合能力。
 
 ### 7.2 命名约定
 
@@ -873,6 +898,8 @@ InfrastructureException（基础设施异常）
 - `@oksai/context`：请求上下文
 - `@oksai/redis`：Redis 客户端和分布式锁
 - `@oksai/messaging`：事件总线（已提供 InMemory 实现；Outbox/可靠投递待实现）
+- `@oksai/plugin`：插件机制（启动期装配 + 元数据 + 生命周期，规划/待实现）
+- `@oksai/app-kit`：应用装配套件（统一装配 shared 能力 + 插件启用，规划/待实现）
 
 ---
 
@@ -886,6 +913,8 @@ InfrastructureException（基础设施异常）
 - [x] 国际化
 - [x] 请求上下文
 - [x] Redis 客户端
+- [ ] 插件机制（启动期装配：@oksai/plugin）
+- [ ] 应用装配套件（统一装配：@oksai/app-kit）
 
 ### 阶段二：领域建模（进行中）
 
@@ -948,6 +977,6 @@ InfrastructureException（基础设施异常）
 
 ---
 
-**文档版本**: v1.0.5  
+**文档版本**: v1.0.6  
 **最后更新**: 2026-02-17  
 **维护者**: Oksai Team

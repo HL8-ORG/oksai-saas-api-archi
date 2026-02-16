@@ -13,7 +13,13 @@
 			"path": "./libs/shared/logger/tsconfig.build.json"
 		},
 		{
+			"path": "./libs/shared/plugin/tsconfig.build.json"
+		},
+		{
 			"path": "./libs/shared/messaging/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/composition/app-kit/tsconfig.build.json"
 		},
 		{
 			"path": "./libs/domains/tenant/tsconfig.build.json"
