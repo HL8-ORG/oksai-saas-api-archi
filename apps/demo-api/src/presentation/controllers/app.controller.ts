@@ -2,7 +2,7 @@ import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { Logger } from '@oksai/logger';
 import { Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AppService } from './app.service';
+import { AppService } from '../services/app.service';
 
 @Controller()
 export class AppController {

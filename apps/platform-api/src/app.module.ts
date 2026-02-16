@@ -1,29 +1,27 @@
-import { env, registerAppConfig } from '@oksai/config';
+import { Module } from '@nestjs/common';
+import { env, registerAppConfig, setupConfigModule } from '@oksai/config';
 import { setupLoggerModule } from '@oksai/logger';
-import { setupConfigModule } from '@oksai/config';
 import { setupOksaiContextModule } from '@oksai/context';
 import { TenantModule } from '@oksai/tenant';
-import { Module } from '@nestjs/common';
 import { AppController } from './presentation/controllers/app.controller';
 import { TenantController } from './presentation/controllers/tenant.controller';
 import { AppService } from './presentation/services/app.service';
 
 const appConfig = registerAppConfig('app', () => ({
-	port: env.int('PORT', { defaultValue: 3000 }),
+	port: env.int('PORT', { defaultValue: 3001 }),
 	nodeEnv: env.string('NODE_ENV', { defaultValue: 'development' }),
-	logLevel: env.string('LOG_LEVEL', { defaultValue: 'info' }),
+	logLevel: env.string('LOG_LEVEL', { defaultValue: 'info' })
 }));
 
 @Module({
 	imports: [
 		setupConfigModule({
-			load: [appConfig],
+			load: [appConfig]
 		}),
 		setupOksaiContextModule({
 			tenantRequired: {
 				enabled: true,
 				options: {
-					// 默认不强制；需要 tenantId 的接口用 @TenantRequired() 标记
 					defaultRequired: false,
 					requiredPaths: []
 				}
@@ -41,19 +39,13 @@ const appConfig = registerAppConfig('app', () => ({
 			},
 			customProps: (req) => ({
 				tenantId: (req as any).tenantId,
-				userId: (req as any).userId,
-			}),
+				userId: (req as any).userId
+			})
 		}),
-		TenantModule,
+		TenantModule
 	],
 	controllers: [AppController, TenantController],
-	providers: [AppService],
+	providers: [AppService]
 })
-export class AppModule {
-	static register() {
-		return {
-			module: AppModule,
-			imports: [AppModule],
-		};
-	}
-}
+export class AppModule {}
+

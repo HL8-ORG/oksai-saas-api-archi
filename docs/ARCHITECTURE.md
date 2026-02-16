@@ -250,7 +250,7 @@ Infrastructure     ───────► Application ───────►
 **目录结构**
 
 ```
-apps/demo-api/src/
+apps/<api-app>/src/
 ├── presentation/
 │   ├── controllers/      # 控制器
 │   ├── dto/             # 数据传输对象
@@ -652,17 +652,19 @@ export class GetTenantListHandler implements IQueryHandler<GetTenantListQuery, T
 ```
 oksai-saas-api-archi/
 ├── apps/
-│   └── demo-api/                          # 表现层入口（HTTP/Fastify）
-│       ├── src/
-│       │   ├── main.ts                    # 启动、全局管道/拦截器/过滤器装配
-│       │   ├── app.module.ts              # 组合各 bounded context 的 module
-│       │   ├── presentation/              # 【强约束】表现层（不含业务逻辑）
-│       │   │   ├── controllers/
-│       │   │   ├── dto/
-│       │   │   ├── guards/
-│       │   │   └── filters/
-│       │   └── bootstrap/                 # 【建议】装配/初始化（如 swagger、health）
-│       └── package.json
+│   ├── platform-api/                      # 【强约束】新架构承载应用（HTTP/Fastify）
+│   │   ├── src/
+│   │   │   ├── main.ts                    # 启动、全局管道/拦截器/过滤器装配
+│   │   │   ├── app.module.ts              # 组合各 bounded context 的 module
+│   │   │   └── presentation/              # 【强约束】表现层（不含业务逻辑）
+│   │   │       ├── controllers/
+│   │   │       ├── dto/
+│   │   │       ├── guards/
+│   │   │       └── filters/
+│   │   └── package.json
+│   │
+│   └── demo-api/                          # 【建议】演示/验证用应用（可保留不改动）
+│       └── ...
 │
 ├── libs/
 │   ├── shared/                             # 基础设施横切能力（可复用）
@@ -670,7 +672,7 @@ oksai-saas-api-archi/
 │   │   ├── config/                         # @oksai/config：配置加载与校验
 │   │   ├── exceptions/                     # @oksai/exceptions：统一异常/错误码
 │   │   ├── context/                        # @oksai/context：CLS(tenantId/requestId/userId)
-│   │   ├── messaging/                      # @oksai/messaging：事件总线/Outbox(规划/开发中)
+│   │   ├── messaging/                      # @oksai/messaging：事件总线（当前提供 InMemory 实现）
 │   │   ├── redis/                          # @oksai/redis：缓存/分布式锁
 │   │   └── i18n/                           # @oksai/i18n：国际化
 │   │
@@ -870,7 +872,7 @@ InfrastructureException（基础设施异常）
 - `@oksai/i18n`：国际化
 - `@oksai/context`：请求上下文
 - `@oksai/redis`：Redis 客户端和分布式锁
-- `@oksai/messaging`：事件总线（待开发）
+- `@oksai/messaging`：事件总线（已提供 InMemory 实现；Outbox/可靠投递待实现）
 
 ---
 
@@ -946,6 +948,6 @@ InfrastructureException（基础设施异常）
 
 ---
 
-**文档版本**: v1.0.4  
+**文档版本**: v1.0.5  
 **最后更新**: 2026-02-17  
 **维护者**: Oksai Team

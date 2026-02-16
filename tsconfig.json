@@ -13,7 +13,16 @@
 			"path": "./libs/shared/logger/tsconfig.build.json"
 		},
 		{
+			"path": "./libs/shared/messaging/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/domains/tenant/tsconfig.build.json"
+		},
+		{
 			"path": "./apps/demo-api/tsconfig.build.json"
+		},
+		{
+			"path": "./apps/platform-api/tsconfig.build.json"
 		}
 	]
 }

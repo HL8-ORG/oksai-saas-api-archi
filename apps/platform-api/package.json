@@ -1,5 +1,5 @@
 {
-	"name": "demo-api",
+	"name": "platform-api",
 	"version": "0.1.0",
 	"private": true,
 	"type": "commonjs",
@@ -61,3 +61,4 @@
 		"testEnvironment": "node"
 	}
 }
+
