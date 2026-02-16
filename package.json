@@ -12,6 +12,7 @@
 		"affected:build": "pnpm turbo run build --affected",
 		"affected:test": "pnpm turbo run test --affected",
 		"affected:lint": "pnpm turbo run lint --affected",
+		"build": "pnpm turbo run build",
 		"lint": "pnpm turbo run lint",
 		"lint:fix": "pnpm turbo run lint:fix",
 		"format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
