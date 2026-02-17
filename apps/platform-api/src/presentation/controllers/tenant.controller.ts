@@ -1,4 +1,6 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, UseGuards } from '@nestjs/common';
+import { AuthSessionGuard } from '@oksai/auth';
+import { CheckPolicies, makeTenantSubject, PoliciesGuard } from '@oksai/authorization';
 import { OKSAI_TENANT_READ_MODEL_TOKEN, TenantApplicationService, type ITenantReadModel } from '@oksai/tenant';
 import { OksaiRequestContextService, TenantOptional, TenantRequired } from '@oksai/context';
 import { CreateTenantDto } from '../dto/create-tenant.dto';
@@ -20,6 +22,11 @@ export class TenantController {
 
 	@Get('me')
 	@TenantRequired()
+	@UseGuards(AuthSessionGuard, PoliciesGuard)
+	@CheckPolicies((ability, ctx) => {
+		if (!ctx.tenantId) return false;
+		return ability.can('read', makeTenantSubject(ctx.tenantId));
+	})
 	async getMe(): Promise<{ tenantId: string; name: string } | null> {
 		const tenantId = this.ctx.getTenantId();
 		if (!tenantId) return null;

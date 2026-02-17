@@ -783,6 +783,50 @@ libs/domains/<context>/
 └── README.md
 ```
 
+### 7.4 【强约束】如何新增 bounded context（基于可复制模板）
+
+本项目推荐以“可复制模板”落盘新的限界上下文，确保目录结构、依赖方向、Outbox/Inbox/投影与测试骨架一致。
+
+**模板位置**
+
+- `tools/templates/bounded-context/`
+
+**落盘步骤（强约束）**
+
+1. 复制 `tools/templates/bounded-context/libs/domains/__context__` 到 `libs/domains/<context-name>`
+2. 全局替换占位符（文件名与代码内容都要替换）：
+   - `__context__` → `<context-name>`（kebab-case，例如 `inventory`）
+   - `__CONTEXT__` → `<ContextName>`（PascalCase，例如 `Inventory`）
+3. 修改新包 `package.json#name` 为 `@oksai/<context-name>`
+4. 在根 `tsconfig.json` 中新增项目引用（references），保持 monorepo 类型检查/构建一致
+5. 在 `apps/platform-api/src/app.module.ts` 中装配该模块：
+   - 推荐对齐现有 `TenantModule.init({ persistence: 'eventStore' })` 的用法
+6. 复制模板集成测试：
+   - 从 `tools/templates/bounded-context/tests/integration/__context__-eventstore-outbox-projection.spec.ts`
+   - 到 `tests/integration/<context-name>-eventstore-outbox-projection.spec.ts`
+   - 按你的 API 路径与 DTO 替换其中的占位符
+
+**最小闭环验收（强约束）**
+
+- 至少 1 个“命令写入 → EventStore/Outbox”路径
+- 至少 1 个“投影订阅 → Inbox 幂等 → 读模型表可见”路径
+- 至少 1 个“查询端点（ReadModel）”可读到投影结果
+
+### 7.5 平台装配内核能力矩阵（@oksai/app-kit）
+
+平台应用（例如 `apps/platform-api`）必须优先使用 `OksaiPlatformModule.init()` 统一装配 shared 能力，避免多个 global module 争抢同一 token。
+
+**能力矩阵**
+
+- **必选**：Config / Context（CLS）/ Logger / Messaging（同进程）
+- **可选**：Database（MikroORM）/ MessagingPostgres（PgInbox/PgOutbox）/ Plugins（启动期装配）
+
+**装配契约（强约束）**
+
+- 启用 `messagingPostgres` 时必须同时启用 `database`（否则 PgInbox/PgOutbox 无法工作，系统应 fail-fast）
+- `tenantId` 必须来自 CLS；Outbox append 禁止覆盖 tenantId（由装配层的 ContextAwareOutbox 负责）
+- `OutboxPublisherService` 必须在装配层上下文中注册（确保注入到被覆盖后的 `OKSAI_OUTBOX_TOKEN`）
+
 ---
 
 ## 八、开发规范和约束
@@ -886,8 +930,8 @@ InfrastructureException（基础设施异常）
 - **语言**：TypeScript
 - **ORM**：MikroORM（支持事件溯源）
 - **数据库**：PostgreSQL（主库）+ Redis（缓存）
-- **消息队列**：Redis Streams / RabbitMQ（待定）
-- **事件存储**：PostgreSQL 事件表
+- **消息队列**：当前 InProc（同进程）；后续以 Adapter 形式接入 Kafka / RabbitMQ / Redis Streams（按需）
+- **事件存储**：PostgreSQL 事件表（EventStore）
 
 ### 10.2 基础设施包
 
@@ -899,10 +943,14 @@ InfrastructureException（基础设施异常）
 - `@oksai/redis`：Redis 客户端和分布式锁
 - `@oksai/database`：数据库装配（MikroORM + PostgreSQL + 迁移执行器，已实现）
 - `@oksai/event-store`：事件存储（PostgreSQL + expectedVersion 乐观并发，已实现）
-- `@oksai/messaging`：事件总线（已提供 InMemory Bus/Inbox/Outbox；Publisher 由 app-kit 装配，已实现）
+- `@oksai/messaging`：消息基础组件（InProc EventBus + Inbox/Outbox + Envelope；Publisher 由装配层注册，已实现）
 - `@oksai/messaging-postgres`：消息可靠性适配器（PgInbox/PgOutbox，已实现）
 - `@oksai/plugin`：插件机制（启动期装配 + 元数据 + 生命周期，已实现）
 - `@oksai/app-kit`：应用装配套件（统一装配 shared 能力 + 插件启用，已实现）
+- `@oksai/auth`：认证适配（Better Auth + CLS userId 写入，已实现）
+- `@oksai/authorization`：鉴权能力（CASL + PoliciesGuard + RoleResolver 端口，已实现）
+- `@oksai/cqrs`：自研 CQRS（命令/查询调度与用例框架化，计划中）
+- `@oksai/eda`：自研 EDA（集成事件可靠投递与幂等消费门面化，计划中）
 
 ---
 
@@ -923,28 +971,38 @@ InfrastructureException（基础设施异常）
 - [x] 事件存储（@oksai/event-store：PostgreSQL + expectedVersion）
 - [x] Outbox/Inbox（PostgreSQL：PgOutbox/PgInbox）
 - [x] 租户投影（TenantCreated → tenant_read_model）
+- [x] 认证与鉴权（Better Auth + CASL，含最小角色投影闭环）
 
-### 阶段二：领域建模（进行中）
+### 阶段二：平台内核框架化（CQRS + EDA）🚧
+
+> 目标：提升“框架化”程度，把强约束内建为默认行为，并升级 bounded context 模板为默认正确姿势。
+
+- [ ] 自研 EDA 门面包（@oksai/eda）：收敛 ContextAware 约束与装配入口
+- [ ] 订阅者框架化：统一订阅 + Inbox 幂等 + 事务 + 可观测字段
+- [ ] 自研 CQRS 包（@oksai/cqrs Phase A）：只做 Command/Query 调度（不引入 EventBus/Saga）
+- [ ] bounded context 模板迁移：Use-case 调度走 CommandBus/QueryBus；投影订阅走 @oksai/eda helper/装饰器
+- [ ] tenant/identity 作为首批迁移样板，验证不回归
+### 阶段三：领域建模（进行中）
 
 - [ ] 核心限界上下文识别
 - [ ] 聚合设计
 - [ ] 值对象设计
 - [ ] 领域事件定义
 
-### 阶段三：应用层开发（待开始）
+### 阶段四：应用层开发（待开始）
 
 - [ ] 命令处理器
 - [ ] 查询处理器
 - [ ] 用例定义
 
-### 阶段四：基础设施实现（待开始）
+### 阶段五：基础设施实现（待开始）
 
 - [x] 仓储实现（tenant：事件溯源仓储）
 - [x] 事件存储实现（PostgreSQL）
 - [x] 投影实现（tenant_read_model + projection_checkpoints）
 - [ ] 事件总线实现
 
-### 阶段五：表现层开发（待开始）
+### 阶段六：表现层开发（待开始）
 
 - [ ] REST API 控制器
 - [ ] GraphQL Resolver（可选）
@@ -953,6 +1011,13 @@ InfrastructureException（基础设施异常）
 ---
 
 ## 十二、参考资源
+
+### 内部文档
+
+- `docs/XS-自研CQRS包技术方案（基于forks-cqrs）.md`
+- `docs/XS-自研EDA包技术方案（基于现有messaging-outbox-inbox）.md`
+- `docs/XS-项目重构计划（CQRS+EDA平台化）.md`
+- `docs/XS-bounded-context-模板使用与结构说明.md`
 
 ### 书籍
 
@@ -985,6 +1050,6 @@ InfrastructureException（基础设施异常）
 
 ---
 
-**文档版本**: v1.0.6  
-**最后更新**: 2026-02-17  
+**文档版本**: v1.0.7  
+**最后更新**: 2026-02-18  
 **维护者**: Oksai Team

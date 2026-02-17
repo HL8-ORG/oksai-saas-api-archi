@@ -1,0 +1,48 @@
+{
+	"name": "@oksai/identity",
+	"version": "0.1.0",
+	"private": true,
+	"type": "commonjs",
+	"main": "dist/src/index.js",
+	"types": "dist/src/index.d.ts",
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"lint": "eslint \"src/**/*.ts\"",
+		"lint:fix": "eslint \"src/**/*.ts\" --fix",
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:cov": "jest --coverage"
+	},
+	"dependencies": {
+		"@nestjs/common": "catalog:",
+		"@mikro-orm/nestjs": "catalog:",
+		"@mikro-orm/core": "catalog:",
+		"@mikro-orm/postgresql": "catalog:",
+		"@oksai/context": "workspace:*",
+		"@oksai/authorization": "workspace:*",
+		"@oksai/database": "workspace:*",
+		"@oksai/event-store": "workspace:*",
+		"@oksai/messaging": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/jest": "^30.0.0",
+		"@types/node": "^22.10.7",
+		"jest": "^30.0.0",
+		"ts-jest": "^29.2.5",
+		"ts-node": "^10.9.2"
+	},
+	"jest": {
+		"moduleFileExtensions": ["js", "json", "ts"],
+		"rootDir": "src",
+		"testRegex": ".*\\.spec\\.ts$",
+		"transform": {
+			"^.+\\.(t|j)s$": "ts-jest"
+		},
+		"collectCoverageFrom": ["**/*.(t|j)s"],
+		"coverageDirectory": "../coverage",
+		"testEnvironment": "node"
+	}
+}
+

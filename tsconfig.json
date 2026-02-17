@@ -38,6 +38,18 @@
 		},
 		{
 			"path": "./apps/platform-api/tsconfig.build.json"
+		},
+		{
+			"path": "./apps/platform-admin-api/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/domains/identity/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/shared/auth/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/shared/authorization/tsconfig.build.json"
 		}
 	]
 }

@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { OksaiPlatformModule, registerPlugins, resolvePluginsFromEnv } from '@oksai/app-kit';
+import { setupAuthModule } from '@oksai/auth';
+import { setupAuthorizationModule, OKSAI_ROLE_RESOLVER_TOKEN } from '@oksai/authorization';
 import { env, registerAppConfig } from '@oksai/config';
+import { IdentityModule, PgRoleResolver } from '@oksai/identity';
 import { TenantModule } from '@oksai/tenant';
 import { AppController } from './presentation/controllers/app.controller';
 import { DebugController } from './presentation/controllers/debug.controller';
@@ -38,6 +41,12 @@ const enabledPlugins = resolvePluginsFromEnv();
 				}
 			},
 			plugins: enabledPlugins
+		}),
+		setupAuthModule({ isGlobal: false }),
+		setupAuthorizationModule({
+			isGlobal: false,
+			imports: [IdentityModule.init({ persistence: 'eventStore' })],
+			roleResolverProvider: { provide: OKSAI_ROLE_RESOLVER_TOKEN, useExisting: PgRoleResolver }
 		}),
 		TenantModule.init({ persistence: 'eventStore' })
 	],

@@ -1,0 +1,68 @@
+{
+	"name": "platform-admin-api",
+	"version": "0.1.0",
+	"private": true,
+	"type": "commonjs",
+	"main": "dist/src/main.js",
+	"scripts": {
+		"build": "nest build",
+		"format": "prettier --write \"src/**/*.ts\"",
+		"start": "nest start",
+		"start:dev": "nest start --watch",
+		"start:debug": "nest start --debug --watch",
+		"start:prod": "node dist/main",
+		"lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+		"test": "NODE_OPTIONS=--experimental-vm-modules jest",
+		"test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+		"test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+		"typecheck": "tsc -p tsconfig.json --noEmit"
+	},
+	"dependencies": {
+		"@nestjs/common": "catalog:",
+		"@nestjs/config": "catalog:",
+		"@nestjs/core": "catalog:",
+		"@nestjs/platform-fastify": "catalog:",
+		"@oksai/app-kit": "workspace:*",
+		"@oksai/config": "workspace:*",
+		"@oksai/context": "workspace:*",
+		"@oksai/logger": "workspace:*",
+		"@oksai/auth": "workspace:*",
+		"@oksai/identity": "workspace:*",
+		"@oksai/authorization": "workspace:*",
+		"@oksai/messaging": "workspace:*",
+		"@oksai/plugin": "workspace:*",
+		"pino": "catalog:",
+		"reflect-metadata": "catalog:",
+		"rxjs": "catalog:",
+		"class-validator": "catalog:",
+		"class-transformer": "catalog:"
+	},
+	"devDependencies": {
+		"@nestjs/cli": "catalog:",
+		"@nestjs/schematics": "catalog:",
+		"@types/jest": "^30.0.0",
+		"@types/node": "^22.10.7",
+		"jest": "^30.0.0",
+		"pino-pretty": "catalog:",
+		"source-map-support": "^0.5.21",
+		"ts-jest": "^29.2.5",
+		"ts-node": "^10.9.2"
+	},
+	"jest": {
+		"moduleFileExtensions": [
+			"js",
+			"json",
+			"ts"
+		],
+		"rootDir": "src",
+		"testRegex": ".*\\.spec\\.ts$",
+		"transform": {
+			"^.+\\.(t|j)s$": "ts-jest"
+		},
+		"collectCoverageFrom": [
+			"**/*.(t|j)s"
+		],
+		"coverageDirectory": "../coverage",
+		"testEnvironment": "node"
+	}
+}
