@@ -23,6 +23,7 @@
 		"@oksai/context": "workspace:*",
 		"@oksai/authorization": "workspace:*",
 		"@oksai/database": "workspace:*",
+		"@oksai/eda": "workspace:*",
 		"@oksai/event-store": "workspace:*",
 		"@oksai/messaging": "workspace:*"
 	},

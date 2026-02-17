@@ -43,7 +43,7 @@
 
 > 建议按周/双周节奏推进，每个阶段结束必须“可运行、可测试、可回滚”。
 
-### Phase 0：基线冻结与验收清单（1-2 天）
+### Phase 0：基线冻结与验收清单（1-2 天）✅ 已完成
 
 **目标**：确保重构期间有稳定基线可对照，避免“改着改着不知道坏没坏”。
 
@@ -64,7 +64,7 @@
 
 ---
 
-### Phase 1：EDA 门面化（@oksai/eda）+ 装配收敛（3-5 天）
+### Phase 1：EDA 门面化（@oksai/eda）+ 装配收敛（3-5 天）✅ 已完成
 
 **目标**：不改业务代码，先把 EDA 约束层从 app-kit 中“收敛”成可复用平台能力。
 
@@ -92,7 +92,7 @@
 
 ---
 
-### Phase 2：EDA 订阅者框架化（减少样板）（3-5 天）
+### Phase 2：EDA 订阅者框架化（减少样板）（3-5 天）✅ 已完成
 
 **目标**：把“订阅 + inbox 幂等 + UoW 事务 + 可观测字段”标准化，降低漏用风险。
 
@@ -116,7 +116,7 @@
 
 ---
 
-### Phase 3：CQRS Phase A（@oksai/cqrs 最小可行）（5-8 天）
+### Phase 3：CQRS Phase A（@oksai/cqrs 最小可行）（5-8 天）✅ 已完成（骨架）
 
 **目标**：框架化“命令/查询调度”，统一用例入口，但不引入 EventBus/Saga。
 
@@ -215,8 +215,75 @@
 
 ## 六、验收总清单（Definition of Done）
 
-- 新增 `@oksai/eda` 并完成装配收敛，现有应用不回归
-- 新增 `@oksai/cqrs`（Phase A）并在至少一个上下文落地
-- bounded-context 模板升级为默认正确姿势（可复制并跑通）
-- 强约束在代码与文档中“可执行”（fail-fast、中文错误语义、统一日志字段）
+### 已完成（Phase 0-3）
+
+- ✅ **Phase 0：基线冻结**
+  - 创建 `docs/XS-重构基线验收清单（Phase0）.md`
+  - 修复 `platform-admin-api` E2E 非确定性超时问题
+  - 基线测试全绿（`apps/platform-api`、`apps/platform-admin-api`）
+
+- ✅ **Phase 1：EDA 门面化**
+  - 新增 `@oksai/eda` 包，提供 `setupEdaModule()` 统一装配入口
+  - 实现 `ContextAwareOutbox`（强约束：tenantId 来自 CLS，禁止覆盖）
+  - 实现 `ContextAwareEventBus`（发布时补齐 CLS 元数据）
+  - `@oksai/app-kit` 支持 `EDA_FACADE_ENABLED` feature flag（默认关闭）
+
+- ✅ **Phase 2：EDA 订阅者框架化**
+  - 新增 `BaseIntegrationEventSubscriber` 基类，封装：
+    - 订阅 + inbox 幂等 + UoW 事务 + 统一日志字段
+  - 迁移 `TenantProjectionSubscriber`、`IdentityRoleProjectionSubscriber` 继承基类
+  - 样板代码显著减少（移除 OnModuleInit/OnModuleDestroy、inbox 重复检查、事务包装等）
+
+- ✅ **Phase 3：CQRS Phase A（骨架）**
+  - 新增 `@oksai/cqrs` 包，提供：
+    - `CommandBus` / `QueryBus`
+    - `@CommandHandler(type)` / `@QueryHandler(type)` + 自动扫描注册
+    - **明确不提供** EventBus/Saga（避免与 `@oksai/eda` 冲突）
+  - `@oksai/app-kit` 增加 `cqrs?: { enabled?: boolean }` 预留装配入口（默认关闭）
+  - **待完成**：尚未在真实上下文中落地使用（Phase 4）
+
+### 待完成（Phase 4-6）
+
+- 🚧 **Phase 4：模板与核心上下文迁移**
+  - 升级 `tools/templates/bounded-context` 为 CQRS 调度路径
+  - 迁移 `libs/domains/tenant` 的 `CreateTenantCommandHandler` 到 CommandBus 调度
+  - 迁移 `libs/domains/identity` 相关用例（可选）
+
+- ⏳ **Phase 5：CQRS Phase B（pipeline 横切能力）**（可选）
+  - 用例级鉴权、幂等、审计、指标等横切能力
+
+- ⏳ **Phase 6：统一文档与规范**
+  - 更新 `docs/ARCHITECTURE.md` 反映平台化后的能力矩阵
+  - 更新模板文档为最新实践
+
+## 七、实施进度总览
+
+| Phase | 名称 | 状态 | 完成时间 | 关键产出 |
+|-------|------|------|----------|----------|
+| Phase 0 | 基线冻结与验收清单 | ✅ 已完成 | 2026-02-18 | 基线文档、修复 admin E2E、测试全绿 |
+| Phase 1 | EDA 门面化 + 装配收敛 | ✅ 已完成 | 2026-02-18 | `@oksai/eda` 包、feature flag 接入 |
+| Phase 2 | EDA 订阅者框架化 | ✅ 已完成 | 2026-02-18 | `BaseIntegrationEventSubscriber`、迁移两个订阅者 |
+| Phase 3 | CQRS Phase A（骨架） | ✅ 已完成 | 2026-02-18 | `@oksai/cqrs` 包、预留装配入口 |
+| Phase 4 | 模板与核心上下文迁移 | 🚧 待开始 | - | - |
+| Phase 5 | CQRS Phase B（pipeline） | ⏳ 可选 | - | - |
+| Phase 6 | 统一文档与规范 | ⏳ 持续 | - | - |
+
+**下一步建议**：进入 Phase 4，升级 `tools/templates/bounded-context` 并迁移 `libs/domains/tenant` 到 CQRS 调度路径。
+
+### 强约束验收
+
+- ✅ 集成事件发布必须走 Outbox（禁止绕过）
+- ✅ 消费必须走 Inbox 幂等（messageId 去重）
+- ✅ tenantId/userId/requestId 必须来自 CLS（禁止客户端透传覆盖）
+- ✅ 中文错误语义与统一日志字段（tenantId/userId/requestId/messageId/eventType）
+
+---
+
+## 八、文档元信息
+
+- **版本**：v1.1.0
+- **最后更新**：2026-02-18
+- **变更记录**：
+  - v1.1.0 (2026-02-18): 完成 Phase 0-3，更新实施进度与验收清单
+  - v1.0.0 (2026-02-17): 初始版本
 

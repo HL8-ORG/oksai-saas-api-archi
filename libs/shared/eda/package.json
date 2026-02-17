@@ -1,0 +1,31 @@
+{
+	"name": "@oksai/eda",
+	"version": "0.1.0",
+	"private": true,
+	"type": "commonjs",
+	"main": "dist/src/index.js",
+	"types": "dist/src/index.d.ts",
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"lint": "eslint \"src/**/*.ts\"",
+		"lint:fix": "eslint \"src/**/*.ts\" --fix",
+		"test": "jest"
+	},
+	"dependencies": {
+		"@nestjs/common": "catalog:",
+		"@oksai/context": "workspace:*",
+		"@oksai/database": "workspace:*",
+		"@oksai/messaging": "workspace:*",
+		"@oksai/messaging-postgres": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/jest": "^30.0.0",
+		"@types/node": "^22.10.7",
+		"jest": "^30.0.0",
+		"ts-jest": "^29.2.5",
+		"ts-node": "^10.9.2"
+	}
+}
+

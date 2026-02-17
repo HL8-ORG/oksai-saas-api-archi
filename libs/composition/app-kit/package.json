@@ -22,6 +22,8 @@
 		"@oksai/config": "workspace:*",
 		"@oksai/context": "workspace:*",
 		"@oksai/database": "workspace:*",
+		"@oksai/cqrs": "workspace:*",
+		"@oksai/eda": "workspace:*",
 		"@oksai/logger": "workspace:*",
 		"@oksai/messaging": "workspace:*",
 		"@oksai/messaging-postgres": "workspace:*",

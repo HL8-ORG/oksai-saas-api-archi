@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { MikroORM } from '@mikro-orm/core';
 import { DatabaseTransactionHost, DatabaseUnitOfWork } from '@oksai/database';
-import { OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, type Disposable, type IEventBus, type IInbox, type IntegrationEventEnvelope } from '@oksai/messaging';
+import { type IntegrationEventEnvelope, type IEventBus, type IInbox, OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN } from '@oksai/messaging';
+import { BaseIntegrationEventSubscriber } from '@oksai/eda';
 
 /**
  * @description
@@ -12,29 +13,24 @@ import { OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, type Disposable, type IEventB
  * - 投影只更新读模型，不修改聚合
  */
 @Injectable()
-export class TenantProjectionSubscriber implements OnModuleInit, OnModuleDestroy {
-	private readonly logger = new Logger(TenantProjectionSubscriber.name);
-	private disposable: Disposable | null = null;
-
+export class TenantProjectionSubscriber extends BaseIntegrationEventSubscriber {
 	constructor(
-		@Inject(OKSAI_EVENT_BUS_TOKEN) private readonly bus: IEventBus,
-		@Inject(OKSAI_INBOX_TOKEN) private readonly inbox: IInbox,
-		private readonly uow: DatabaseUnitOfWork,
+		@Inject(OKSAI_EVENT_BUS_TOKEN) bus: IEventBus,
+		@Inject(OKSAI_INBOX_TOKEN) inbox: IInbox,
+		uow: DatabaseUnitOfWork,
 		private readonly orm: MikroORM,
 		private readonly txHost: DatabaseTransactionHost
-	) {}
-
-	async onModuleInit(): Promise<void> {
-		this.disposable = await this.bus.subscribe<IntegrationEventEnvelope<any>>('TenantCreated', async (env) => {
-			await this.handleTenantCreated(env);
-		});
-		this.logger.log('Tenant 投影订阅已注册（TenantCreated）。');
+	) {
+		super(bus, inbox, uow);
 	}
 
-	async onModuleDestroy(): Promise<void> {
-		if (!this.disposable) return;
-		await this.disposable.dispose();
-		this.disposable = null;
+	protected async setupSubscriptions(): Promise<void> {
+		await this.subscribe<{ aggregateId: string; occurredAt: string; eventData: { name: string }; schemaVersion: number }>(
+			'TenantCreated',
+			async (env) => {
+				await this.handleTenantCreated(env);
+			}
+		);
 	}
 
 	private async handleTenantCreated(
@@ -47,19 +43,9 @@ export class TenantProjectionSubscriber implements OnModuleInit, OnModuleDestroy
 			return;
 		}
 
-		const processed = await this.inbox.isProcessed(env.messageId);
-		if (processed) return;
-
-		// 投影写入与 inbox 标记使用同事务，避免“写入成功但未标记”导致重复
-		await this.uow.transactional(async () => {
-			const again = await this.inbox.isProcessed(env.messageId);
-			if (again) return;
-
-			const name = String(env.payload.eventData?.name ?? '').trim();
-			await this.upsertTenantReadModel({ tenantId, name });
-			await this.upsertCheckpoint({ projectionName: 'tenant:readModel', lastMessageId: env.messageId });
-			await this.inbox.markProcessed(env.messageId);
-		});
+		const name = String(env.payload.eventData?.name ?? '').trim();
+		await this.upsertTenantReadModel({ tenantId, name });
+		await this.upsertCheckpoint({ projectionName: 'tenant:readModel', lastMessageId: env.messageId });
 	}
 
 	private async upsertTenantReadModel(params: { tenantId: string; name: string }): Promise<void> {
@@ -86,4 +72,3 @@ export class TenantProjectionSubscriber implements OnModuleInit, OnModuleDestroy
 		);
 	}
 }
-

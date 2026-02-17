@@ -3,6 +3,8 @@ import { setupConfigModule, type SetupConfigModuleOptions } from '@oksai/config'
 import { setupLoggerModule } from '@oksai/logger';
 import { getOksaiRequestContextFromCurrent, OksaiContextModule, setupOksaiContextModule, type SetupOksaiContextModuleOptions } from '@oksai/context';
 import { setupDatabaseModule, type SetupDatabaseModuleOptions } from '@oksai/database';
+import { OksaiCqrsModule } from '@oksai/cqrs';
+import { setupEdaModule } from '@oksai/eda';
 import { PluginModule, type PluginInput } from '@oksai/plugin';
 import {
 	InMemoryEventBus,
@@ -80,6 +82,20 @@ export interface SetupOksaiPlatformModuleOptions {
 	plugins?: PluginInput[];
 
 	/**
+	 * @description CQRS 用例调度模块（可选）
+	 *
+	 * 说明：
+	 * - 当前阶段仅提供最小骨架（CommandBus/QueryBus + handler 自动注册）
+	 * - 强约束：不提供 EventBus/Saga（集成事件通道必须使用 `@oksai/eda`）
+	 */
+	cqrs?: {
+		/**
+		 * @description 是否启用 CQRS 装配（默认 false）
+		 */
+		enabled?: boolean;
+	};
+
+	/**
 	 * @description logger 美化输出开关（默认 development=true）
 	 */
 	prettyLogs?: boolean;
@@ -110,40 +126,62 @@ export class OksaiPlatformModule {
 	 */
 	static init(options: SetupOksaiPlatformModuleOptions = {}): DynamicModule {
 		assertPlatformKernelOptions(options);
+		const edaFacadeEnabled = String(process.env.EDA_FACADE_ENABLED ?? '').trim().toLowerCase() === 'true';
 		const plugins = options.plugins ?? [];
 		const baseConfig = options.config ?? {};
 		const pretty = options.prettyLogs ?? ((process.env.NODE_ENV ?? 'development') === 'development');
+		const cqrsEnabled = options.cqrs?.enabled ?? false;
 
 		const databaseImports = options.database ? [setupDatabaseModule({ ...options.database, isGlobal: true })] : [];
-		const messagingPostgresImports = options.messagingPostgres
-			? [setupMessagingPostgresModule({ ...options.messagingPostgres, isGlobal: false })]
-			: [];
+		const messagingPostgresImports =
+			!edaFacadeEnabled && options.messagingPostgres
+				? [setupMessagingPostgresModule({ ...options.messagingPostgres, isGlobal: false })]
+				: [];
 
-		const messagingOverrides = options.messagingPostgres
-			? [
-					// PostgreSQL 版 Inbox/Outbox
-					{
-						provide: OKSAI_INBOX_TOKEN,
-						useExisting: PgInbox
-					},
-					{
-						provide: OKSAI_OUTBOX_TOKEN,
-						useFactory: (inner: PgOutbox) => new ContextAwareOutbox(inner),
-						inject: [PgOutbox]
-					}
-				]
-			: [
-					// 默认：InMemory 版 Outbox 仍由平台层包装（注入 CLS 元数据）
-					{
-						provide: OKSAI_INBOX_TOKEN,
-						useExisting: InMemoryInbox
-					},
-					{
-						provide: OKSAI_OUTBOX_TOKEN,
-						useFactory: (inner: InMemoryOutbox) => new ContextAwareOutbox(inner),
-						inject: [InMemoryOutbox]
-					}
-				];
+		const messagingOverrides = edaFacadeEnabled
+			? []
+			: options.messagingPostgres
+				? [
+						// PostgreSQL 版 Inbox/Outbox
+						{
+							provide: OKSAI_INBOX_TOKEN,
+							useExisting: PgInbox
+						},
+						{
+							provide: OKSAI_OUTBOX_TOKEN,
+							useFactory: (inner: PgOutbox) => new ContextAwareOutbox(inner),
+							inject: [PgOutbox]
+						}
+					]
+				: [
+						// 默认：InMemory 版 Outbox 仍由平台层包装（注入 CLS 元数据）
+						{
+							provide: OKSAI_INBOX_TOKEN,
+							useExisting: InMemoryInbox
+						},
+						{
+							provide: OKSAI_OUTBOX_TOKEN,
+							useFactory: (inner: InMemoryOutbox) => new ContextAwareOutbox(inner),
+							inject: [InMemoryOutbox]
+						}
+					];
+
+		const edaModule = edaFacadeEnabled
+			? setupEdaModule({
+					persistence: options.messagingPostgres ? 'postgres' : 'inMemory',
+					messaging: options.messaging ?? {},
+					messagingPostgres: options.messagingPostgres ?? {}
+				})
+			: null;
+
+		const exportsList = edaFacadeEnabled
+			? // 注意：当 token 由“导入模块”提供时，必须导出“模块本身”以 re-export providers
+				[PluginModule, OksaiContextModule, edaModule!.module]
+			: [PluginModule, OksaiContextModule, OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, OKSAI_OUTBOX_TOKEN];
+
+		if (cqrsEnabled) {
+			exportsList.push(OksaiCqrsModule);
+		}
 
 		return {
 			module: OksaiPlatformModule,
@@ -153,8 +191,9 @@ export class OksaiPlatformModule {
 				setupConfigModule(baseConfig),
 				...databaseImports,
 				...messagingPostgresImports,
-				// messaging 作为“平台能力”由 app-kit 统一装配并导出（避免多个 global 模块争抢同一 token）
-				setupMessagingModule({ ...(options.messaging ?? {}), isGlobal: false }),
+				...(cqrsEnabled ? [OksaiCqrsModule] : []),
+				// messaging/eda 作为“平台能力”由 app-kit 统一装配并导出（避免多个 global 模块争抢同一 token）
+				edaFacadeEnabled ? (edaModule as DynamicModule) : setupMessagingModule({ ...(options.messaging ?? {}), isGlobal: false }),
 				setupLoggerModule({
 					pretty,
 					customProps: (req) => {
@@ -177,17 +216,21 @@ export class OksaiPlatformModule {
 				PluginModule.init({ plugins })
 			],
 			providers: [
-				// 使用 ContextAwareEventBus 覆盖事件总线 token：在 publish 时补齐 CLS 元数据
-				{
-					provide: OKSAI_EVENT_BUS_TOKEN,
-					useFactory: (inner: InMemoryEventBus): IEventBus => new ContextAwareEventBus(inner),
-					inject: [InMemoryEventBus]
-				},
-				// Outbox 发布器必须注册在“平台装配层”上下文中，确保拿到被覆盖后的 OKSAI_OUTBOX_TOKEN
-				OutboxPublisherService,
+				...(edaFacadeEnabled
+					? []
+					: [
+							// 使用 ContextAwareEventBus 覆盖事件总线 token：在 publish 时补齐 CLS 元数据
+							{
+								provide: OKSAI_EVENT_BUS_TOKEN,
+								useFactory: (inner: InMemoryEventBus): IEventBus => new ContextAwareEventBus(inner),
+								inject: [InMemoryEventBus]
+							},
+							// Outbox 发布器必须注册在“平台装配层”上下文中，确保拿到被覆盖后的 OKSAI_OUTBOX_TOKEN
+							OutboxPublisherService
+						]),
 				...messagingOverrides
 			],
-			exports: [PluginModule, OksaiContextModule, OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, OKSAI_OUTBOX_TOKEN]
+			exports: exportsList
 		};
 	}
 }

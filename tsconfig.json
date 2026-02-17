@@ -28,6 +28,12 @@
 			"path": "./libs/shared/messaging-postgres/tsconfig.build.json"
 		},
 		{
+			"path": "./libs/shared/eda/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/shared/cqrs/tsconfig.build.json"
+		},
+		{
 			"path": "./libs/composition/app-kit/tsconfig.build.json"
 		},
 		{
