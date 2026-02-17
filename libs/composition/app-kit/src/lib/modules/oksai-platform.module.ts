@@ -1,7 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { setupConfigModule, type SetupConfigModuleOptions } from '@oksai/config';
 import { setupLoggerModule } from '@oksai/logger';
-import { getOksaiRequestContextFromCurrent, setupOksaiContextModule, type SetupOksaiContextModuleOptions } from '@oksai/context';
+import { getOksaiRequestContextFromCurrent, OksaiContextModule, setupOksaiContextModule, type SetupOksaiContextModuleOptions } from '@oksai/context';
+import { setupDatabaseModule, type SetupDatabaseModuleOptions } from '@oksai/database';
 import { PluginModule, type PluginInput } from '@oksai/plugin';
 import {
 	InMemoryEventBus,
@@ -10,9 +11,12 @@ import {
 	OKSAI_EVENT_BUS_TOKEN,
 	OKSAI_INBOX_TOKEN,
 	OKSAI_OUTBOX_TOKEN,
+	OutboxPublisherService,
 	setupMessagingModule,
+	type SetupMessagingModuleOptions,
 	type IEventBus
 } from '@oksai/messaging';
+import { PgInbox, PgOutbox, setupMessagingPostgresModule, type SetupMessagingPostgresModuleOptions } from '@oksai/messaging-postgres';
 import { ContextAwareEventBus } from '../messaging/context-aware-event-bus';
 import { ContextAwareOutbox } from '../messaging/context-aware-outbox';
 
@@ -26,6 +30,28 @@ export interface SetupOksaiPlatformModuleOptions {
 	 * @description 请求上下文（CLS）
 	 */
 	context?: SetupOksaiContextModuleOptions;
+
+	/**
+	 * @description 数据库模块装配（可选）
+	 *
+	 * 说明：不传则不连接数据库，便于 demo/纯内存模式。
+	 */
+	database?: SetupDatabaseModuleOptions;
+
+	/**
+	 * @description 消息模块装配（可选）
+	 *
+	 * 默认：inMemory inbox/outbox（用于开发演示）。
+	 */
+	messaging?: SetupMessagingModuleOptions;
+
+	/**
+	 * @description PostgreSQL 版 Inbox/Outbox 装配（可选）
+	 *
+	 * 使用场景：
+	 * - 引入 Postgres 后，用 PgInbox/PgOutbox 替换内存实现
+	 */
+	messagingPostgres?: SetupMessagingPostgresModuleOptions;
 
 	/**
 	 * @description 启用的插件列表（启动期装配）
@@ -58,14 +84,47 @@ export class OksaiPlatformModule {
 		const baseConfig = options.config ?? {};
 		const pretty = options.prettyLogs ?? ((process.env.NODE_ENV ?? 'development') === 'development');
 
+		const databaseImports = options.database ? [setupDatabaseModule({ ...options.database, isGlobal: true })] : [];
+		const messagingPostgresImports = options.messagingPostgres
+			? [setupMessagingPostgresModule({ ...options.messagingPostgres, isGlobal: false })]
+			: [];
+
+		const messagingOverrides = options.messagingPostgres
+			? [
+					// PostgreSQL 版 Inbox/Outbox
+					{
+						provide: OKSAI_INBOX_TOKEN,
+						useExisting: PgInbox
+					},
+					{
+						provide: OKSAI_OUTBOX_TOKEN,
+						useFactory: (inner: PgOutbox) => new ContextAwareOutbox(inner),
+						inject: [PgOutbox]
+					}
+				]
+			: [
+					// 默认：InMemory 版 Outbox 仍由平台层包装（注入 CLS 元数据）
+					{
+						provide: OKSAI_INBOX_TOKEN,
+						useExisting: InMemoryInbox
+					},
+					{
+						provide: OKSAI_OUTBOX_TOKEN,
+						useFactory: (inner: InMemoryOutbox) => new ContextAwareOutbox(inner),
+						inject: [InMemoryOutbox]
+					}
+				];
+
 		return {
 			module: OksaiPlatformModule,
 			global: true,
 			imports: [
 				setupOksaiContextModule(options.context),
 				setupConfigModule(baseConfig),
+				...databaseImports,
+				...messagingPostgresImports,
 				// messaging 作为“平台能力”由 app-kit 统一装配并导出（避免多个 global 模块争抢同一 token）
-				setupMessagingModule({ isGlobal: false }),
+				setupMessagingModule({ ...(options.messaging ?? {}), isGlobal: false }),
 				setupLoggerModule({
 					pretty,
 					customProps: (req) => {
@@ -94,19 +153,11 @@ export class OksaiPlatformModule {
 					useFactory: (inner: InMemoryEventBus): IEventBus => new ContextAwareEventBus(inner),
 					inject: [InMemoryEventBus]
 				},
-				// 使用 ContextAwareOutbox 覆盖 Outbox token：在 append 时注入 CLS 元数据，并禁止覆盖 tenantId
-				{
-					provide: OKSAI_OUTBOX_TOKEN,
-					useFactory: (inner: InMemoryOutbox) => new ContextAwareOutbox(inner),
-					inject: [InMemoryOutbox]
-				},
-				// 将 Inbox token 提升到平台模块导出（便于插件/上下文消费端做幂等）
-				{
-					provide: OKSAI_INBOX_TOKEN,
-					useExisting: InMemoryInbox
-				}
+				// Outbox 发布器必须注册在“平台装配层”上下文中，确保拿到被覆盖后的 OKSAI_OUTBOX_TOKEN
+				OutboxPublisherService,
+				...messagingOverrides
 			],
-			exports: [PluginModule, OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, OKSAI_OUTBOX_TOKEN]
+			exports: [PluginModule, OksaiContextModule, OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, OKSAI_OUTBOX_TOKEN]
 		};
 	}
 }

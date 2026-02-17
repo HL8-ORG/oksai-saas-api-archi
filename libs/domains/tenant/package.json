@@ -18,6 +18,12 @@
 		"test:cov": "jest --coverage"
 	},
 	"dependencies": {
+		"@mikro-orm/core": "catalog:",
+		"@mikro-orm/nestjs": "catalog:",
+		"@mikro-orm/postgresql": "catalog:",
+		"@oksai/context": "workspace:*",
+		"@oksai/database": "workspace:*",
+		"@oksai/event-store": "workspace:*",
 		"@oksai/messaging": "workspace:*",
 		"@nestjs/common": "catalog:"
 	},

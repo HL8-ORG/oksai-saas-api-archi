@@ -24,6 +24,9 @@ const enabledPlugins = resolvePluginsFromEnv();
 			config: {
 				load: [appConfig]
 			},
+			// 启用数据库（用于 EventStore/Outbox/Projection）
+			database: {},
+			messagingPostgres: {},
 			context: {
 				tenantRequired: {
 					enabled: true,
@@ -36,7 +39,7 @@ const enabledPlugins = resolvePluginsFromEnv();
 			},
 			plugins: enabledPlugins
 		}),
-		TenantModule
+		TenantModule.init({ persistence: 'eventStore' })
 	],
 	controllers: [AppController, TenantController, DebugController],
 	providers: [AppService]

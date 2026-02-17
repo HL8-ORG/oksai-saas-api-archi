@@ -897,7 +897,10 @@ InfrastructureException（基础设施异常）
 - `@oksai/i18n`：国际化
 - `@oksai/context`：请求上下文
 - `@oksai/redis`：Redis 客户端和分布式锁
-- `@oksai/messaging`：事件总线（已提供 InMemory Bus/Inbox/Outbox + Publisher；PostgreSQL/可靠投递适配器待实现）
+- `@oksai/database`：数据库装配（MikroORM + PostgreSQL + 迁移执行器，已实现）
+- `@oksai/event-store`：事件存储（PostgreSQL + expectedVersion 乐观并发，已实现）
+- `@oksai/messaging`：事件总线（已提供 InMemory Bus/Inbox/Outbox；Publisher 由 app-kit 装配，已实现）
+- `@oksai/messaging-postgres`：消息可靠性适配器（PgInbox/PgOutbox，已实现）
 - `@oksai/plugin`：插件机制（启动期装配 + 元数据 + 生命周期，已实现）
 - `@oksai/app-kit`：应用装配套件（统一装配 shared 能力 + 插件启用，已实现）
 
@@ -916,6 +919,10 @@ InfrastructureException（基础设施异常）
 - [x] 插件机制（启动期装配：@oksai/plugin）
 - [x] 应用装配套件（统一装配：@oksai/app-kit）
 - [x] Outbox/Inbox（InMemory + Publisher，先跑通发布一致性闭环）
+- [x] 数据库装配（@oksai/database：MikroORM + 迁移）
+- [x] 事件存储（@oksai/event-store：PostgreSQL + expectedVersion）
+- [x] Outbox/Inbox（PostgreSQL：PgOutbox/PgInbox）
+- [x] 租户投影（TenantCreated → tenant_read_model）
 
 ### 阶段二：领域建模（进行中）
 
@@ -932,9 +939,9 @@ InfrastructureException（基础设施异常）
 
 ### 阶段四：基础设施实现（待开始）
 
-- [ ] 仓储实现
-- [ ] 事件存储实现
-- [ ] 投影实现
+- [x] 仓储实现（tenant：事件溯源仓储）
+- [x] 事件存储实现（PostgreSQL）
+- [x] 投影实现（tenant_read_model + projection_checkpoints）
 - [ ] 事件总线实现
 
 ### 阶段五：表现层开发（待开始）

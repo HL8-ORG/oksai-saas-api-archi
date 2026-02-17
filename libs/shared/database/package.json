@@ -1,5 +1,5 @@
 {
-	"name": "@oksai/app-kit",
+	"name": "@oksai/database",
 	"version": "0.1.0",
 	"private": true,
 	"type": "commonjs",
@@ -18,14 +18,16 @@
 		"test:cov": "jest --coverage"
 	},
 	"dependencies": {
+		"@mikro-orm/core": "catalog:",
+		"@mikro-orm/migrations": "catalog:",
+		"@mikro-orm/nestjs": "catalog:",
+		"@mikro-orm/postgresql": "catalog:",
 		"@nestjs/common": "catalog:",
+		"@nestjs/core": "catalog:",
+		"@nestjs/config": "catalog:",
 		"@oksai/config": "workspace:*",
-		"@oksai/context": "workspace:*",
-		"@oksai/database": "workspace:*",
-		"@oksai/logger": "workspace:*",
-		"@oksai/messaging": "workspace:*",
-		"@oksai/messaging-postgres": "workspace:*",
-		"@oksai/plugin": "workspace:*"
+		"pg": "catalog:",
+		"reflect-metadata": "catalog:"
 	},
 	"jest": {
 		"moduleFileExtensions": [

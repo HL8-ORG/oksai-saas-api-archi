@@ -1,5 +1,6 @@
-import { createIntegrationEventEnvelope, OKSAI_OUTBOX_TOKEN, type IOutbox } from '@oksai/messaging';
-import { Inject } from '@nestjs/common';
+import { createIntegrationEventEnvelope, type IOutbox } from '@oksai/messaging';
+import { OksaiRequestContextService } from '@oksai/context';
+import type { DatabaseUnitOfWork } from '@oksai/database';
 import type { ITenantRepository } from '../ports/tenant.repository.port';
 import type { CreateTenantCommand } from '../commands/create-tenant.command';
 import { TenantAggregate } from '../../domain/aggregates/tenant.aggregate';
@@ -19,10 +20,14 @@ export class CreateTenantCommandHandler {
 	/**
 	 * @param repo - 租户仓储端口
 	 * @param outbox - Outbox（发布侧一致性：先写 Outbox，再由 Publisher 投递到事件总线）
+	 * @param ctx - 请求上下文（用于写入 tenantId，满足强约束：tenantId 来自 CLS）
+	 * @param uow - 数据库工作单元（可选：启用数据库时用于同事务写入）
 	 */
 	constructor(
 		private readonly repo: ITenantRepository,
-		@Inject(OKSAI_OUTBOX_TOKEN) private readonly outbox: IOutbox
+		private readonly outbox: IOutbox,
+		private readonly ctx: OksaiRequestContextService,
+		private readonly uow?: DatabaseUnitOfWork
 	) {}
 
 	/**
@@ -34,20 +39,35 @@ export class CreateTenantCommandHandler {
 		const tenantName = new TenantName(command.name);
 		const settings = new TenantSettings(command.maxMembers ?? 50);
 
+		// 强约束：tenantId 必须来自服务端上下文（CLS），禁止客户端透传覆盖
+		this.ctx.setTenantId(tenantId.toString());
+
 		const tenant = TenantAggregate.create(tenantId, tenantName, settings);
-		await this.repo.save(tenant);
 
 		// 领域事件发布（Outbox：先写入待发布队列，后台 publisher 负责投递）
-		const events = tenant.pullUncommittedEvents();
-		for (const e of events) {
-			// 最小实现：发布“集成事件 Envelope”（提供 messageId 幂等键）
-			const envelope = createIntegrationEventEnvelope(e.eventType, {
+		const events = tenant.getUncommittedEvents();
+		const envelopes = events.map((e) =>
+			createIntegrationEventEnvelope(e.eventType, {
 				aggregateId: e.aggregateId,
 				occurredAt: e.occurredAt.toISOString(),
 				eventData: e.eventData,
 				schemaVersion: e.schemaVersion ?? 1
-			});
-			await this.outbox.append(envelope);
+			})
+		);
+
+		const persist = async () => {
+			await this.repo.save(tenant);
+			for (const env of envelopes) {
+				await this.outbox.append(env);
+			}
+			// 对于非事件溯源仓储（例如内存仓储），这里兜底提交事件缓冲，避免重复发布
+			tenant.commitUncommittedEvents();
+		};
+
+		if (this.uow) {
+			await this.uow.transactional(persist);
+		} else {
+			await persist();
 		}
 
 		return { tenantId: tenantId.toString() };

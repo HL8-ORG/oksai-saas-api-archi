@@ -4,6 +4,12 @@
 	"files": [],
 	"references": [
 		{
+			"path": "./libs/shared/database/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/shared/event-store/tsconfig.build.json"
+		},
+		{
 			"path": "./libs/shared/context/tsconfig.build.json"
 		},
 		{
@@ -17,6 +23,9 @@
 		},
 		{
 			"path": "./libs/shared/messaging/tsconfig.build.json"
+		},
+		{
+			"path": "./libs/shared/messaging-postgres/tsconfig.build.json"
 		},
 		{
 			"path": "./libs/composition/app-kit/tsconfig.build.json"

@@ -1,4 +1,6 @@
 import type { IOutbox } from '@oksai/messaging';
+import type { DatabaseUnitOfWork } from '@oksai/database';
+import type { OksaiRequestContextService } from '@oksai/context';
 import type { ITenantRepository } from '../ports/tenant.repository.port';
 import type { CreateTenantCommand } from '../commands/create-tenant.command';
 import { CreateTenantCommandHandler } from '../handlers/create-tenant.command-handler';
@@ -18,8 +20,8 @@ import { CreateTenantCommandHandler } from '../handlers/create-tenant.command-ha
 export class TenantApplicationService {
 	private readonly createTenantHandler: CreateTenantCommandHandler;
 
-	constructor(repo: ITenantRepository, outbox: IOutbox) {
-		this.createTenantHandler = new CreateTenantCommandHandler(repo, outbox);
+	constructor(repo: ITenantRepository, outbox: IOutbox, ctx: OksaiRequestContextService, uow?: DatabaseUnitOfWork) {
+		this.createTenantHandler = new CreateTenantCommandHandler(repo, outbox, ctx, uow);
 	}
 
 	/**

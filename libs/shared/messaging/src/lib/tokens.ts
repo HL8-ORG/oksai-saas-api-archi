@@ -17,3 +17,12 @@ export const OKSAI_INBOX_TOKEN = Symbol.for('oksai:messaging:inbox');
  */
 export const OKSAI_OUTBOX_TOKEN = Symbol.for('oksai:messaging:outbox');
 
+/**
+ * @description Inbox 内部实现 Token（用于装配层包装/替换实现）
+ */
+export const OKSAI_INBOX_INNER_TOKEN = Symbol.for('oksai:messaging:inbox:inner');
+
+/**
+ * @description Outbox 内部实现 Token（用于装配层包装/替换实现）
+ */
+export const OKSAI_OUTBOX_INNER_TOKEN = Symbol.for('oksai:messaging:outbox:inner');
