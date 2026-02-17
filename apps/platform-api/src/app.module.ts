@@ -3,9 +3,10 @@ import { OksaiPlatformModule, registerPlugins, resolvePluginsFromEnv } from '@ok
 import { env, registerAppConfig } from '@oksai/config';
 import { TenantModule } from '@oksai/tenant';
 import { AppController } from './presentation/controllers/app.controller';
+import { DebugController } from './presentation/controllers/debug.controller';
 import { TenantController } from './presentation/controllers/tenant.controller';
 import { AppService } from './presentation/services/app.service';
-import { DemoPluginModule } from './plugins/demo-plugin.module';
+import { PLATFORM_PLUGINS } from './plugins';
 
 const appConfig = registerAppConfig('app', () => ({
 	port: env.int('PORT', { defaultValue: 3001 }),
@@ -14,7 +15,7 @@ const appConfig = registerAppConfig('app', () => ({
 }));
 
 // 注册可用插件清单（name -> module）
-registerPlugins({ demo: DemoPluginModule });
+registerPlugins(PLATFORM_PLUGINS);
 const enabledPlugins = resolvePluginsFromEnv();
 
 @Module({
@@ -37,7 +38,7 @@ const enabledPlugins = resolvePluginsFromEnv();
 		}),
 		TenantModule
 	],
-	controllers: [AppController, TenantController],
+	controllers: [AppController, TenantController, DebugController],
 	providers: [AppService]
 })
 export class AppModule {}

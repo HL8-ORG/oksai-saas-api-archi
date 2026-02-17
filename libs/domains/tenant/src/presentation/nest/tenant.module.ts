@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { InMemoryEventBus } from '@oksai/messaging';
+import { OKSAI_OUTBOX_TOKEN, type IOutbox } from '@oksai/messaging';
 import { InMemoryTenantRepository } from '../../infrastructure/persistence/in-memory-tenant.repository';
 import { TenantApplicationService } from '../../application/services/tenant-application.service';
 
@@ -16,13 +16,12 @@ import { TenantApplicationService } from '../../application/services/tenant-appl
 	providers: [
 		// Ports implementations
 		InMemoryTenantRepository,
-		InMemoryEventBus,
 
 		// Application service facade
 		{
 			provide: TenantApplicationService,
-			useFactory: (repo: InMemoryTenantRepository, bus: InMemoryEventBus) => new TenantApplicationService(repo, bus),
-			inject: [InMemoryTenantRepository, InMemoryEventBus]
+			useFactory: (repo: InMemoryTenantRepository, outbox: IOutbox) => new TenantApplicationService(repo, outbox),
+			inject: [InMemoryTenantRepository, OKSAI_OUTBOX_TOKEN]
 		}
 	],
 	exports: [TenantApplicationService]

@@ -1,4 +1,4 @@
-import type { IEventBus } from '@oksai/messaging';
+import type { IOutbox } from '@oksai/messaging';
 import type { ITenantRepository } from '../ports/tenant.repository.port';
 import type { CreateTenantCommand } from '../commands/create-tenant.command';
 import { CreateTenantCommandHandler } from '../handlers/create-tenant.command-handler';
@@ -18,8 +18,8 @@ import { CreateTenantCommandHandler } from '../handlers/create-tenant.command-ha
 export class TenantApplicationService {
 	private readonly createTenantHandler: CreateTenantCommandHandler;
 
-	constructor(repo: ITenantRepository, eventBus: IEventBus) {
-		this.createTenantHandler = new CreateTenantCommandHandler(repo, eventBus);
+	constructor(repo: ITenantRepository, outbox: IOutbox) {
+		this.createTenantHandler = new CreateTenantCommandHandler(repo, outbox);
 	}
 
 	/**

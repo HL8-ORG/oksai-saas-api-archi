@@ -26,6 +26,7 @@
 		"@oksai/config": "workspace:*",
 		"@oksai/context": "workspace:*",
 		"@oksai/logger": "workspace:*",
+		"@oksai/messaging": "workspace:*",
 		"@oksai/plugin": "workspace:*",
 		"@oksai/tenant": "workspace:*",
 		"pino": "catalog:",

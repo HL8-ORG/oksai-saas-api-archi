@@ -17,7 +17,9 @@
 		"test:watch": "jest --watch",
 		"test:cov": "jest --coverage"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"@nestjs/common": "catalog:"
+	},
 	"jest": {
 		"moduleFileExtensions": [
 			"js",

@@ -1,4 +1,5 @@
-import type { IEventBus } from '@oksai/messaging';
+import { createIntegrationEventEnvelope, OKSAI_OUTBOX_TOKEN, type IOutbox } from '@oksai/messaging';
+import { Inject } from '@nestjs/common';
 import type { ITenantRepository } from '../ports/tenant.repository.port';
 import type { CreateTenantCommand } from '../commands/create-tenant.command';
 import { TenantAggregate } from '../../domain/aggregates/tenant.aggregate';
@@ -17,11 +18,11 @@ import { TenantSettings } from '../../domain/value-objects/tenant-settings.value
 export class CreateTenantCommandHandler {
 	/**
 	 * @param repo - 租户仓储端口
-	 * @param eventBus - 事件总线（用于发布领域事件/触发投影）
+	 * @param outbox - Outbox（发布侧一致性：先写 Outbox，再由 Publisher 投递到事件总线）
 	 */
 	constructor(
 		private readonly repo: ITenantRepository,
-		private readonly eventBus: IEventBus
+		@Inject(OKSAI_OUTBOX_TOKEN) private readonly outbox: IOutbox
 	) {}
 
 	/**
@@ -36,10 +37,17 @@ export class CreateTenantCommandHandler {
 		const tenant = TenantAggregate.create(tenantId, tenantName, settings);
 		await this.repo.save(tenant);
 
-		// 领域事件发布（后续可替换为 Outbox）
+		// 领域事件发布（Outbox：先写入待发布队列，后台 publisher 负责投递）
 		const events = tenant.pullUncommittedEvents();
 		for (const e of events) {
-			await this.eventBus.publish(e);
+			// 最小实现：发布“集成事件 Envelope”（提供 messageId 幂等键）
+			const envelope = createIntegrationEventEnvelope(e.eventType, {
+				aggregateId: e.aggregateId,
+				occurredAt: e.occurredAt.toISOString(),
+				eventData: e.eventData,
+				schemaVersion: e.schemaVersion ?? 1
+			});
+			await this.outbox.append(envelope);
 		}
 
 		return { tenantId: tenantId.toString() };

@@ -3,6 +3,18 @@ import { setupConfigModule, type SetupConfigModuleOptions } from '@oksai/config'
 import { setupLoggerModule } from '@oksai/logger';
 import { getOksaiRequestContextFromCurrent, setupOksaiContextModule, type SetupOksaiContextModuleOptions } from '@oksai/context';
 import { PluginModule, type PluginInput } from '@oksai/plugin';
+import {
+	InMemoryEventBus,
+	InMemoryInbox,
+	InMemoryOutbox,
+	OKSAI_EVENT_BUS_TOKEN,
+	OKSAI_INBOX_TOKEN,
+	OKSAI_OUTBOX_TOKEN,
+	setupMessagingModule,
+	type IEventBus
+} from '@oksai/messaging';
+import { ContextAwareEventBus } from '../messaging/context-aware-event-bus';
+import { ContextAwareOutbox } from '../messaging/context-aware-outbox';
 
 export interface SetupOksaiPlatformModuleOptions {
 	/**
@@ -48,9 +60,12 @@ export class OksaiPlatformModule {
 
 		return {
 			module: OksaiPlatformModule,
+			global: true,
 			imports: [
 				setupOksaiContextModule(options.context),
 				setupConfigModule(baseConfig),
+				// messaging 作为“平台能力”由 app-kit 统一装配并导出（避免多个 global 模块争抢同一 token）
+				setupMessagingModule({ isGlobal: false }),
 				setupLoggerModule({
 					pretty,
 					customProps: (req) => {
@@ -72,7 +87,26 @@ export class OksaiPlatformModule {
 				}),
 				PluginModule.init({ plugins })
 			],
-			exports: [PluginModule]
+			providers: [
+				// 使用 ContextAwareEventBus 覆盖事件总线 token：在 publish 时补齐 CLS 元数据
+				{
+					provide: OKSAI_EVENT_BUS_TOKEN,
+					useFactory: (inner: InMemoryEventBus): IEventBus => new ContextAwareEventBus(inner),
+					inject: [InMemoryEventBus]
+				},
+				// 使用 ContextAwareOutbox 覆盖 Outbox token：在 append 时注入 CLS 元数据，并禁止覆盖 tenantId
+				{
+					provide: OKSAI_OUTBOX_TOKEN,
+					useFactory: (inner: InMemoryOutbox) => new ContextAwareOutbox(inner),
+					inject: [InMemoryOutbox]
+				},
+				// 将 Inbox token 提升到平台模块导出（便于插件/上下文消费端做幂等）
+				{
+					provide: OKSAI_INBOX_TOKEN,
+					useExisting: InMemoryInbox
+				}
+			],
+			exports: [PluginModule, OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, OKSAI_OUTBOX_TOKEN]
 		};
 	}
 }

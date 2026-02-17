@@ -897,9 +897,9 @@ InfrastructureException（基础设施异常）
 - `@oksai/i18n`：国际化
 - `@oksai/context`：请求上下文
 - `@oksai/redis`：Redis 客户端和分布式锁
-- `@oksai/messaging`：事件总线（已提供 InMemory 实现；Outbox/可靠投递待实现）
-- `@oksai/plugin`：插件机制（启动期装配 + 元数据 + 生命周期，规划/待实现）
-- `@oksai/app-kit`：应用装配套件（统一装配 shared 能力 + 插件启用，规划/待实现）
+- `@oksai/messaging`：事件总线（已提供 InMemory Bus/Inbox/Outbox + Publisher；PostgreSQL/可靠投递适配器待实现）
+- `@oksai/plugin`：插件机制（启动期装配 + 元数据 + 生命周期，已实现）
+- `@oksai/app-kit`：应用装配套件（统一装配 shared 能力 + 插件启用，已实现）
 
 ---
 
@@ -913,8 +913,9 @@ InfrastructureException（基础设施异常）
 - [x] 国际化
 - [x] 请求上下文
 - [x] Redis 客户端
-- [ ] 插件机制（启动期装配：@oksai/plugin）
-- [ ] 应用装配套件（统一装配：@oksai/app-kit）
+- [x] 插件机制（启动期装配：@oksai/plugin）
+- [x] 应用装配套件（统一装配：@oksai/app-kit）
+- [x] Outbox/Inbox（InMemory + Publisher，先跑通发布一致性闭环）
 
 ### 阶段二：领域建模（进行中）
 
