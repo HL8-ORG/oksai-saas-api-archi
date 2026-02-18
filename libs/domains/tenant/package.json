@@ -22,6 +22,7 @@
 		"@mikro-orm/nestjs": "catalog:",
 		"@mikro-orm/postgresql": "catalog:",
 		"@oksai/context": "workspace:*",
+		"@oksai/cqrs": "workspace:*",
 		"@oksai/database": "workspace:*",
 		"@oksai/eda": "workspace:*",
 		"@oksai/event-store": "workspace:*",
@@ -46,4 +47,3 @@
 		"testEnvironment": "node"
 	}
 }
-

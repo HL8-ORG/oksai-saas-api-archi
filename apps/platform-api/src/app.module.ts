@@ -30,6 +30,10 @@ const enabledPlugins = resolvePluginsFromEnv();
 			// 启用数据库（用于 EventStore/Outbox/Projection）
 			database: {},
 			messagingPostgres: {},
+			// 启用 CQRS 用例调度（CommandBus/QueryBus）
+			cqrs: {
+				enabled: true
+			},
 			context: {
 				tenantRequired: {
 					enabled: true,
@@ -54,4 +58,3 @@ const enabledPlugins = resolvePluginsFromEnv();
 	providers: [AppService]
 })
 export class AppModule {}
-

@@ -10,38 +10,69 @@ import { DomainException } from '../exceptions/domain.exception';
  *
  * @example
  * ```ts
- * const id = new TenantId('t-001');
- * id.toString(); // 't-001'
+ * const id = TenantId.of('t-001');
+ * id.getValue(); // 't-001'
+ * id.equals(otherId); // boolean
  * ```
  */
 export class TenantId {
-	private readonly value: string;
+	private readonly _value: string;
 
 	/**
 	 * @param value - tenantId
 	 * @throws {DomainException} 当 tenantId 非法时抛出
 	 */
-	constructor(value: string) {
+	private constructor(value: string) {
+		this._value = value;
+		Object.freeze(this);
+	}
+
+	/**
+	 * @description 从字符串创建租户 ID
+	 */
+	static of(value: string): TenantId {
 		const v = String(value ?? '').trim();
 		if (!v) throw new DomainException('tenantId 不能为空');
 		if (!/^[a-zA-Z0-9_-]{3,64}$/.test(v)) {
 			throw new DomainException('tenantId 格式非法（允许 a-zA-Z0-9_-，长度 3-64）');
 		}
-		this.value = v;
+		return new TenantId(v);
+	}
+
+	/**
+	 * @description 生成新的租户 ID
+	 */
+	static create(): TenantId {
+		const id = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
+		return new TenantId(`t-${id}`);
+	}
+
+	/**
+	 * @description 获取租户 ID 值
+	 */
+	getValue(): string {
+		return this._value;
 	}
 
 	/**
 	 * @description 按值比较
 	 */
 	equals(other: TenantId): boolean {
-		return this.value === other.value;
+		if (!other) return false;
+		return this._value === other._value;
 	}
 
 	/**
 	 * @description 字符串化
 	 */
 	toString(): string {
-		return this.value;
+		return this._value;
+	}
+
+	/**
+	 * @description 序列化为 JSON
+	 */
+	toJSON(): string {
+		return this._value;
 	}
 }
-

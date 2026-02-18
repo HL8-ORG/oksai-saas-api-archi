@@ -1,9 +1,11 @@
+import { Injectable } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@oksai/cqrs';
 import { OksaiRequestContextService } from '@oksai/context';
 import type { IOutbox } from '@oksai/messaging';
 import { createIntegrationEventEnvelope } from '@oksai/messaging';
 import type { DatabaseUnitOfWork } from '@oksai/database';
 import type { I__CONTEXT__Repository } from '../ports/__context__.repository.port';
-import type { Create__CONTEXT__Command } from '../commands/create-__context__.command';
+import { CREATE___CONTEXT___COMMAND_TYPE, type Create__CONTEXT__Command } from '../commands/create-__context__.command';
 import { __CONTEXT__Aggregate } from '../../domain/aggregates/__context__.aggregate';
 
 /**
@@ -12,8 +14,14 @@ import { __CONTEXT__Aggregate } from '../../domain/aggregates/__context__.aggreg
  * 强约束：
  * - tenantId 必须来自 CLS
  * - 写侧必须先落库（EventStore/Outbox）再由 publisher 异步投递
+ *
+ * 使用方式：
+ * - 通过 @CommandHandler 装饰器自动注册到 CommandBus
+ * - 由 ApplicationService 通过 commandBus.execute() 调用
  */
-export class Create__CONTEXT__CommandHandler {
+@Injectable()
+@CommandHandler(CREATE___CONTEXT___COMMAND_TYPE)
+export class Create__CONTEXT__CommandHandler implements ICommandHandler<Create__CONTEXT__Command, { id: string }> {
 	constructor(
 		private readonly repo: I__CONTEXT__Repository,
 		private readonly outbox: IOutbox,
@@ -60,4 +68,3 @@ function generateId(): string {
 	const rand = Math.random().toString(36).slice(2, 8);
 	return `x_${Date.now()}_${rand}`;
 }
-

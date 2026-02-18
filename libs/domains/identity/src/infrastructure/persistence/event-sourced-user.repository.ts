@@ -26,7 +26,7 @@ export class EventSourcedUserRepository implements IUserRepository {
 		await this.eventStore.appendToStream({
 			tenantId,
 			aggregateType: 'User',
-			aggregateId: aggregate.id,
+			aggregateId: aggregate.id.getValue(),
 			expectedVersion: aggregate.getExpectedVersion(),
 			events,
 			userId: this.ctx.getUserId() ?? undefined,
@@ -56,4 +56,3 @@ export class EventSourcedUserRepository implements IUserRepository {
 		return UserAggregate.rehydrate(id, domainEvents);
 	}
 }
-

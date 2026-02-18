@@ -1,23 +1,38 @@
 import { type DynamicModule, Module } from '@nestjs/common';
-import { OksaiRequestContextService } from '@oksai/context';
-import { DatabaseUnitOfWork } from '@oksai/database';
 import { setupEventStoreModule } from '@oksai/event-store';
-import { OKSAI_OUTBOX_TOKEN, type IOutbox } from '@oksai/messaging';
+import { OksaiCqrsModule } from '@oksai/cqrs';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { IdentityApplicationService } from '../../application/services/identity-application.service';
-import type { IUserRepository } from '../../application/ports/user.repository.port';
+import { RegisterUserCommandHandler } from '../../application/handlers/register-user.command-handler';
 import { EventSourcedUserRepository } from '../../infrastructure/persistence/event-sourced-user.repository';
 import { IdentityRoleAssignmentEntity } from '../../infrastructure/read-model/role-assignment.entity';
 import { PgRoleResolver } from '../../infrastructure/read-model/pg-role-resolver';
 import { IdentityRoleProjectionSubscriber } from '../../infrastructure/projections/identity-role-projection.subscriber';
 
 /**
- * @description Identity 上下文 Nest 装配模块（最小实现）
+ * @description Identity 上下文 Nest 装配模块
+ *
+ * 说明：
+ * - 该模块负责把"端口接口"绑定到"基础设施实现"
+ * - 支持 `eventStore` 持久化装配路径
+ * - 通过 CQRS 调度路径执行用例（CommandBus → Handler）
+ *
+ * 变更说明：
+ * - 已迁移到 CQRS 调度路径
+ * - ApplicationService 通过注入 CommandBus 调用 handler
+ * - Handler 通过 @CommandHandler 装饰器自动注册
+ *
+ * 强约束：
+ * - 必须启用 `@oksai/app-kit` 的 `cqrs.enabled: true` 或自行装配 OksaiCqrsModule
+ * - Handler 必须使用 `@Injectable` + `@CommandHandler` 装饰器
  */
 @Module({})
 export class IdentityModule {
 	/**
 	 * @description 初始化 Identity 模块
+	 *
+	 * @param options - 装配选项
+	 * @returns DynamicModule
 	 */
 	static init(options: { persistence?: 'eventStore' } = {}): DynamicModule {
 		const persistence = options.persistence ?? 'eventStore';
@@ -28,20 +43,21 @@ export class IdentityModule {
 
 		return {
 			module: IdentityModule,
-			imports: [setupEventStoreModule({ isGlobal: false }), MikroOrmModule.forFeature([IdentityRoleAssignmentEntity])],
+			imports: [
+				setupEventStoreModule({ isGlobal: false }),
+				OksaiCqrsModule,
+				MikroOrmModule.forFeature([IdentityRoleAssignmentEntity])
+			],
 			providers: [
 				EventSourcedUserRepository,
 				PgRoleResolver,
 				IdentityRoleProjectionSubscriber,
-				{
-					provide: IdentityApplicationService,
-					useFactory: (repo: IUserRepository, outbox: IOutbox, ctx: OksaiRequestContextService, uow?: DatabaseUnitOfWork) =>
-						new IdentityApplicationService(repo, outbox, ctx, uow),
-					inject: [EventSourcedUserRepository, OKSAI_OUTBOX_TOKEN, OksaiRequestContextService, { token: DatabaseUnitOfWork, optional: true }]
-				}
+				// CQRS Handler（通过 @CommandHandler 自动注册）
+				RegisterUserCommandHandler,
+				// ApplicationService（注入 CommandBus）
+				IdentityApplicationService
 			],
 			exports: [IdentityApplicationService, PgRoleResolver]
 		};
 	}
 }
-

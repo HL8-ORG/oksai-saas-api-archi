@@ -1,22 +1,29 @@
+import { Injectable } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@oksai/cqrs';
 import { createIntegrationEventEnvelope, type IOutbox } from '@oksai/messaging';
 import { OksaiRequestContextService } from '@oksai/context';
 import type { DatabaseUnitOfWork } from '@oksai/database';
 import type { ITenantRepository } from '../ports/tenant.repository.port';
-import type { CreateTenantCommand } from '../commands/create-tenant.command';
+import { CREATE_TENANT_COMMAND_TYPE, type CreateTenantCommand } from '../commands/create-tenant.command';
 import { TenantAggregate } from '../../domain/aggregates/tenant.aggregate';
 import { TenantId } from '../../domain/value-objects/tenant-id.value-object';
 import { TenantName } from '../../domain/value-objects/tenant-name.value-object';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.value-object';
 
 /**
- * @description
- * 创建租户用例处理器（Application Layer）。
+ * @description 创建租户用例处理器（Application Layer）
  *
  * 说明：
  * - 负责编排：创建聚合 → 持久化 → 发布事件
  * - 不包含业务规则细节（交由领域对象保证）
+ *
+ * 使用方式：
+ * - 通过 @CommandHandler 装饰器自动注册到 CommandBus
+ * - 由 ApplicationService 通过 commandBus.execute() 调用
  */
-export class CreateTenantCommandHandler {
+@Injectable()
+@CommandHandler(CREATE_TENANT_COMMAND_TYPE)
+export class CreateTenantCommandHandler implements ICommandHandler<CreateTenantCommand, { tenantId: string }> {
 	/**
 	 * @param repo - 租户仓储端口
 	 * @param outbox - Outbox（发布侧一致性：先写 Outbox，再由 Publisher 投递到事件总线）
@@ -35,9 +42,9 @@ export class CreateTenantCommandHandler {
 	 * @returns 新租户 ID
 	 */
 	async execute(command: CreateTenantCommand): Promise<{ tenantId: string }> {
-		const tenantId = new TenantId(generateTenantId());
-		const tenantName = new TenantName(command.name);
-		const settings = new TenantSettings(command.maxMembers ?? 50);
+		const tenantId = TenantId.of(generateTenantId());
+		const tenantName = TenantName.of(command.name);
+		const settings = TenantSettings.of({ maxMembers: command.maxMembers ?? 50 });
 
 		// 强约束：tenantId 必须来自服务端上下文（CLS），禁止客户端透传覆盖
 		this.ctx.setTenantId(tenantId.toString());
@@ -79,4 +86,3 @@ function generateTenantId(): string {
 	const rand = Math.random().toString(36).slice(2, 8);
 	return `t_${Date.now()}_${rand}`;
 }
-

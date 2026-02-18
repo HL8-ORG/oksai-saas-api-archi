@@ -6,10 +6,12 @@
 本文档的目标是把这些模式落成**可执行的工程规范**（目录结构、依赖边界、事件与投影约束、多租户隔离约束等）。
 
 补充说明（避免误解）：
+
 - 本项目**不以 DDD 作为强制方法论**；仅在需要时借用 DDD 的部分概念（如：限界上下文、聚合、值对象、领域事件）来提升业务建模表达力。
 - 当“DDD 建模建议”与“Clean/CQRS/ES/EDA 的工程约束”发生冲突时，以**工程约束**为准。
 
 文档标识约定：
+
 - **【强约束】**：必须遵守，用于设计评审与代码评审的硬性规则
 - **【建议】**：推荐实践，可根据场景权衡取舍
 
@@ -26,6 +28,7 @@
 - **多租户隔离**：租户级的数据和上下文隔离
 
 补充说明（插件机制定位）：
+
 - 本项目的“插件”指**启动期装配（Composition-time）**：插件以 Nest `Module/DynamicModule` 形式参与组装，随应用启动加载/随应用退出释放。
 - 本项目**不考虑运行时热插拔**（不需要也不建议在运行中动态替换 DI 组件）。
 
@@ -601,13 +604,13 @@ export class GetTenantListHandler implements IQueryHandler<GetTenantListQuery, T
 
 - **事件不可变**：事件一旦发布/持久化，不允许修改；修正只能通过发布“新事件”表达。
 - **事件必须自描述**：每个事件必须包含：
-  - `eventType`：稳定的字符串（禁止随意改名）
-  - `occurredAt`：事件发生时间
-  - `aggregateId`：聚合标识
-  - `eventData`：业务负载（禁止塞入技术对象/ORM 实体）
+    - `eventType`：稳定的字符串（禁止随意改名）
+    - `occurredAt`：事件发生时间
+    - `aggregateId`：聚合标识
+    - `eventData`：业务负载（禁止塞入技术对象/ORM 实体）
 - **事件版本**：必须支持 schema 演进：
-  - 事件负载应包含 `schemaVersion`（或通过 `eventType@vN` 体现版本）
-  - 新版本通过“向前兼容”方式扩展字段（尽量只新增字段，避免删除/重命名）
+    - 事件负载应包含 `schemaVersion`（或通过 `eventType@vN` 体现版本）
+    - 新版本通过“向前兼容”方式扩展字段（尽量只新增字段，避免删除/重命名）
 - **幂等键**：跨进程/跨服务消费必须可幂等（建议字段：`eventId`/`messageId` + `aggregateId` + `version`）。
 
 ### 6.5.2 【强约束】事件存储（Event Store）与并发控制
@@ -629,17 +632,17 @@ export class GetTenantListHandler implements IQueryHandler<GetTenantListQuery, T
 
 - **投影只做读优化**：投影处理器禁止修改原聚合；只能更新读模型/缓存/搜索索引等。
 - **可重放**：所有投影必须支持从事件流重建（replay）：
-  - 读模型需要记录 `lastProcessedEventId` 或 `(aggregateId, version)` 水位
-  - 支持“重置投影”并从 0 重新追赶
+    - 读模型需要记录 `lastProcessedEventId` 或 `(aggregateId, version)` 水位
+    - 支持“重置投影”并从 0 重新追赶
 - **一致性声明**：每个查询必须标注读取一致性级别（强一致/最终一致）与允许的延迟窗口。
 
 ### 6.5.5 【强约束】重试、死信与可观测性
 
 - **重试策略**：异步处理失败必须重试（指数退避 + 最大次数），超过阈值进入死信/待处理队列。
 - **可观测性字段**：日志/事件/消息必须携带：
-  - `requestId`（或 traceId）
-  - `tenantId`
-  - `userId`（如可得）
+    - `requestId`（或 traceId）
+    - `tenantId`
+    - `userId`（如可得）
 
 ### 6.5.6 【强约束】多租户隔离
 
@@ -653,14 +656,14 @@ export class GetTenantListHandler implements IQueryHandler<GetTenantListQuery, T
 
 - **插件形式**：插件必须以 Nest `Module/DynamicModule` 形式提供，并在应用启动期通过统一装配模块加载（参见 `libs/composition/app-kit` 规划）。
 - **生命周期**：插件如需初始化/释放资源，应提供：
-  - `onPluginBootstrap()`：启动阶段初始化（例如注册订阅、预热缓存）
-  - `onPluginDestroy()`：退出阶段释放（例如断开连接、停止定时任务）
+    - `onPluginBootstrap()`：启动阶段初始化（例如注册订阅、预热缓存）
+    - `onPluginDestroy()`：退出阶段释放（例如断开连接、停止定时任务）
 - **边界要求**：
-  - 插件不得绕过 `Application/Domain` 边界直接访问数据库/外部系统（必须通过端口/适配器层实现）
-  - 插件不得在 `Domain` 层引入框架依赖（保持领域纯净）
+    - 插件不得绕过 `Application/Domain` 边界直接访问数据库/外部系统（必须通过端口/适配器层实现）
+    - 插件不得在 `Domain` 层引入框架依赖（保持领域纯净）
 - **事件订阅扩展（推荐路径）**：
-  - 插件可通过“集成事件订阅者（Integration Event Subscriber）”扩展平台能力（通知、审计、投影、外部同步等）
-  - 必须满足：tenantId 不可被覆盖、消费幂等、超时与重试策略可配置、日志字段完整（tenantId/userId/requestId/eventId）
+    - 插件可通过“集成事件订阅者（Integration Event Subscriber）”扩展平台能力（通知、审计、投影、外部同步等）
+    - 必须满足：tenantId 不可被覆盖、消费幂等、超时与重试策略可配置、日志字段完整（tenantId/userId/requestId/eventId）
 - **启用方式**：插件启用通过环境变量选择（例如 `PLUGINS_ENABLED=demo,metrics`），并在启动时 fail-fast（未知插件名直接报错）。
 
 ---
@@ -795,16 +798,16 @@ libs/domains/<context>/
 
 1. 复制 `tools/templates/bounded-context/libs/domains/__context__` 到 `libs/domains/<context-name>`
 2. 全局替换占位符（文件名与代码内容都要替换）：
-   - `__context__` → `<context-name>`（kebab-case，例如 `inventory`）
-   - `__CONTEXT__` → `<ContextName>`（PascalCase，例如 `Inventory`）
+    - `__context__` → `<context-name>`（kebab-case，例如 `inventory`）
+    - `__CONTEXT__` → `<ContextName>`（PascalCase，例如 `Inventory`）
 3. 修改新包 `package.json#name` 为 `@oksai/<context-name>`
 4. 在根 `tsconfig.json` 中新增项目引用（references），保持 monorepo 类型检查/构建一致
 5. 在 `apps/platform-api/src/app.module.ts` 中装配该模块：
-   - 推荐对齐现有 `TenantModule.init({ persistence: 'eventStore' })` 的用法
+    - 推荐对齐现有 `TenantModule.init({ persistence: 'eventStore' })` 的用法
 6. 复制模板集成测试：
-   - 从 `tools/templates/bounded-context/tests/integration/__context__-eventstore-outbox-projection.spec.ts`
-   - 到 `tests/integration/<context-name>-eventstore-outbox-projection.spec.ts`
-   - 按你的 API 路径与 DTO 替换其中的占位符
+    - 从 `tools/templates/bounded-context/tests/integration/__context__-eventstore-outbox-projection.spec.ts`
+    - 到 `tests/integration/<context-name>-eventstore-outbox-projection.spec.ts`
+    - 按你的 API 路径与 DTO 替换其中的占位符
 
 **最小闭环验收（强约束）**
 
@@ -894,7 +897,186 @@ InfrastructureException（基础设施异常）
 
 ---
 
-## 九、最佳实践
+## 九、核心限界上下文
+
+### 9.1 上下文识别
+
+| 上下文           | 职责           | 核心聚合                                 | 状态      |
+| ---------------- | -------------- | ---------------------------------------- | --------- |
+| **Tenant**       | 多租户管理     | TenantAggregate                          | ✅ 已实现 |
+| **Identity**     | 用户身份与权限 | UserAggregate, TenantMembershipAggregate | ✅ 已实现 |
+| **Billing**      | 计费与支付     | BillingAggregate                         | ✅ 已实现 |
+| **Subscription** | 订阅管理       | SubscriptionAggregate                    | ⏳ 待实现 |
+| **Notification** | 通知服务       | NotificationAggregate                    | ⏳ 待实现 |
+
+### 9.2 Identity 上下文
+
+**核心职责**：
+
+- 用户注册与身份管理
+- 租户成员关系管理
+- 角色分配与权限控制
+
+**聚合设计**：
+
+```typescript
+// 用户聚合
+class UserAggregate extends AggregateRoot {
+	readonly id: UserId;
+	readonly email: Email;
+	private roles: RoleKey[] = [];
+
+	static register(id: UserId, email: Email): UserAggregate {
+		const user = new UserAggregate(id, email);
+		user.record(new UserRegisteredEvent(id, email));
+		return user;
+	}
+
+	grantRole(role: RoleKey): DomainEvent[] {
+		if (this.roles.includes(role)) return [];
+		this.roles.push(role);
+		return [new RoleGrantedToUserEvent(this.id, role)];
+	}
+}
+
+// 租户成员关系聚合
+class TenantMembershipAggregate extends AggregateRoot {
+	readonly tenantId: TenantId;
+	readonly userId: UserId;
+	readonly role: RoleKey;
+	readonly joinedAt: Date;
+}
+```
+
+**值对象**：
+
+| 值对象     | 说明         | 校验规则       |
+| ---------- | ------------ | -------------- |
+| `UserId`   | 用户唯一标识 | 非空字符串     |
+| `Email`    | 用户邮箱     | 有效邮箱格式   |
+| `TenantId` | 租户唯一标识 | 非空字符串     |
+| `RoleKey`  | 角色标识     | 预定义角色枚举 |
+
+**领域事件**：
+
+| 事件                | 触发条件       | 消费者             |
+| ------------------- | -------------- | ------------------ |
+| `UserRegistered`    | 用户注册成功   | 角色投影、通知服务 |
+| `RoleGrantedToUser` | 用户被分配角色 | 角色投影           |
+| `UserAddedToTenant` | 用户加入租户   | 成员关系投影       |
+| `UserDisabled`      | 用户被禁用     | 审计日志           |
+
+### 9.3 Tenant 上下文
+
+**核心职责**：
+
+- 租户创建与配置
+- 租户设置管理
+- 租户状态管理
+
+**聚合设计**：
+
+```typescript
+class TenantAggregate extends AggregateRoot {
+	readonly id: TenantId;
+	private name: TenantName;
+	private settings: TenantSettings;
+	private status: TenantStatus;
+
+	static create(id: TenantId, name: TenantName, settings: TenantSettings): TenantAggregate {
+		const tenant = new TenantAggregate(id, name, settings, TenantStatus.ACTIVE);
+		tenant.record(new TenantCreatedEvent(id, name, settings));
+		return tenant;
+	}
+}
+```
+
+### 9.4 Billing 上下文
+
+**核心职责**：
+
+- 账单创建与管理
+- 支付状态跟踪
+- 退款处理
+
+**聚合设计**：
+
+```typescript
+class BillingAggregate {
+	readonly id: BillingId;
+	readonly tenantId: string;
+	readonly amount: Money;
+	readonly billingType: BillingType;
+	private status: BillingStatus;
+
+	static create(
+		id: BillingId,
+		tenantId: string,
+		amount: Money,
+		billingType: BillingType,
+		description: string
+	): BillingAggregate {
+		const billing = new BillingAggregate(id, tenantId, amount, billingType, description, BillingStatus.PENDING);
+		billing.record({
+			eventType: 'BillingCreated',
+			aggregateId: id.toString(),
+			eventData: { tenantId, amount, currency, billingType, description }
+		});
+		return billing;
+	}
+
+	markAsPaid(paymentMethod: string, transactionId: string): void {
+		this.status = BillingStatus.PAID;
+		this.record({ eventType: 'BillingPaid', ... });
+	}
+
+	markAsFailed(reason: string): void {
+		this.status = BillingStatus.FAILED;
+		this.record({ eventType: 'BillingFailed', ... });
+	}
+
+	refund(reason: string): void {
+		this.status = BillingStatus.REFUNDED;
+		this.record({ eventType: 'BillingRefunded', ... });
+	}
+}
+```
+
+**值对象**：
+
+| 值对象          | 说明         | 校验规则                     |
+| --------------- | ------------ | ---------------------------- |
+| `BillingId`     | 账单唯一标识 | 非空字符串                   |
+| `Money`         | 金额         | 金额非负，3位货币代码        |
+| `BillingStatus` | 账单状态     | pending/paid/failed/refunded |
+| `BillingType`   | 账单类型     | subscription/usage/one_time  |
+
+**领域事件**：
+
+| 事件              | 触发条件 | 消费者               |
+| ----------------- | -------- | -------------------- |
+| `BillingCreated`  | 账单创建 | 投影订阅者           |
+| `BillingPaid`     | 支付成功 | 投影订阅者、通知服务 |
+| `BillingFailed`   | 支付失败 | 投影订阅者、告警服务 |
+| `BillingRefunded` | 退款完成 | 投影订阅者           |
+
+### 9.5 上下文协作
+
+**事件驱动协作**：
+
+```
+[Tenant] TenantCreated ─────────────► [Identity] 创建管理员成员关系
+      │
+      └──────────────────────────────► [Notification] 发送欢迎邮件
+
+[Identity] UserRegistered ──────────► [Tenant] 更新成员统计
+      │
+      └──────────────────────────────► [Notification] 发送验证邮件
+```
+
+---
+
+## 十、最佳实践
 
 ### 9.1 聚合设计
 
@@ -922,7 +1104,7 @@ InfrastructureException（基础设施异常）
 
 ---
 
-## 十、技术选型
+## 十一、技术选型
 
 ### 10.1 框架和库
 
@@ -946,15 +1128,15 @@ InfrastructureException（基础设施异常）
 - `@oksai/messaging`：消息基础组件（InProc EventBus + Inbox/Outbox + Envelope；Publisher 由装配层注册，已实现）
 - `@oksai/messaging-postgres`：消息可靠性适配器（PgInbox/PgOutbox，已实现）
 - `@oksai/plugin`：插件机制（启动期装配 + 元数据 + 生命周期，已实现）
-- `@oksai/app-kit`：应用装配套件（统一装配 shared 能力 + 插件启用，已实现）
+- `@oksai/app-kit`：应用装配套件（统一装配 shared 能力 + 插件启用 + CQRS 开关，已实现）
 - `@oksai/auth`：认证适配（Better Auth + CLS userId 写入，已实现）
-- `@oksai/authorization`：鉴权能力（CASL + PoliciesGuard + RoleResolver 端口，已实现）
-- `@oksai/cqrs`：自研 CQRS（命令/查询调度与用例框架化，计划中）
-- `@oksai/eda`：自研 EDA（集成事件可靠投递与幂等消费门面化，计划中）
+- `@oksai/authorization`：鉴权能力（CASL + PoliciesGuard + RoleResolver 端口 + CaslPermissionChecker，已实现）
+- `@oksai/cqrs`：自研 CQRS（CommandBus/QueryBus + @CommandHandler/@QueryHandler 自动注册 + Pipeline 横切能力：AuditPipe/MetricsPipe/ValidationPipe/AuthorizationPipe，已实现）
+- `@oksai/eda`：自研 EDA（ContextAwareOutbox/EventBus + BaseIntegrationEventSubscriber，已实现）
 
 ---
 
-## 十一、实施路线图
+## 十二、实施路线图
 
 ### 阶段一：基础设施搭建 ✅
 
@@ -973,21 +1155,26 @@ InfrastructureException（基础设施异常）
 - [x] 租户投影（TenantCreated → tenant_read_model）
 - [x] 认证与鉴权（Better Auth + CASL，含最小角色投影闭环）
 
-### 阶段二：平台内核框架化（CQRS + EDA）🚧
+### 阶段二：平台内核框架化（CQRS + EDA）✅
 
-> 目标：提升“框架化”程度，把强约束内建为默认行为，并升级 bounded context 模板为默认正确姿势。
+> 目标：提升"框架化"程度，把强约束内建为默认行为，并升级 bounded context 模板为默认正确姿势。
 
-- [ ] 自研 EDA 门面包（@oksai/eda）：收敛 ContextAware 约束与装配入口
-- [ ] 订阅者框架化：统一订阅 + Inbox 幂等 + 事务 + 可观测字段
-- [ ] 自研 CQRS 包（@oksai/cqrs Phase A）：只做 Command/Query 调度（不引入 EventBus/Saga）
-- [ ] bounded context 模板迁移：Use-case 调度走 CommandBus/QueryBus；投影订阅走 @oksai/eda helper/装饰器
-- [ ] tenant/identity 作为首批迁移样板，验证不回归
-### 阶段三：领域建模（进行中）
+- [x] 自研 EDA 门面包（@oksai/eda）：收敛 ContextAware 约束与装配入口
+- [x] 订阅者框架化：统一订阅 + Inbox 幂等 + 事务 + 可观测字段（BaseIntegrationEventSubscriber）
+- [x] 自研 CQRS 包（@oksai/cqrs Phase A + Phase B）：Command/Query 调度 + Pipeline 横切能力
+- [x] bounded context 模板迁移：Use-case 调度走 CommandBus/QueryBus；投影订阅走 @oksai/eda
+- [x] tenant 上下文迁移：验证 CQRS 调度路径
+- [x] identity 上下文迁移：RegisterUserCommand 走 CommandBus
+- [x] 权限集成：CaslPermissionChecker 接入 CASL
 
-- [ ] 核心限界上下文识别
-- [ ] 聚合设计
-- [ ] 值对象设计
-- [ ] 领域事件定义
+### 阶段三：领域建模（进行中）🚧
+
+- [x] 核心限界上下文识别（Identity、Tenant、Billing、Subscription、Notification）
+- [x] Identity 上下文聚合设计（UserAggregate、TenantMembershipAggregate）
+- [x] Identity 上下文值对象设计（Email、UserId、TenantId、RoleKey）
+- [x] Identity 上下文领域事件定义（UserRegistered、RoleGrantedToUser）
+- [ ] Billing/Subscription 上下文领域建模
+- [ ] 领域事件契约文档化
 
 ### 阶段四：应用层开发（待开始）
 
@@ -1010,7 +1197,7 @@ InfrastructureException（基础设施异常）
 
 ---
 
-## 十二、参考资源
+## 十三、参考资源
 
 ### 内部文档
 
@@ -1050,6 +1237,6 @@ InfrastructureException（基础设施异常）
 
 ---
 
-**文档版本**: v1.0.7  
+**文档版本**: v1.7.0  
 **最后更新**: 2026-02-18  
 **维护者**: Oksai Team

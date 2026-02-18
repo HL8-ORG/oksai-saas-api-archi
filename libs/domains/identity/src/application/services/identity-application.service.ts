@@ -1,25 +1,32 @@
-import type { IOutbox } from '@oksai/messaging';
-import type { DatabaseUnitOfWork } from '@oksai/database';
-import type { OksaiRequestContextService } from '@oksai/context';
-import type { IUserRepository } from '../ports/user.repository.port';
+import { Injectable } from '@nestjs/common';
+import { CommandBus } from '@oksai/cqrs';
 import type { RegisterUserCommand } from '../commands/register-user.command';
-import { RegisterUserCommandHandler } from '../handlers/register-user.command-handler';
 
 /**
- * @description Identity 应用服务（最小实现）
+ * @description Identity 应用服务（用例门面）
  *
  * 使用场景：
- * - 作为表现层（Controller）进入应用层的统一入口
+ * - Presentation 层（Controller/Resolver）调用应用层时的入口点
+ * - 避免 Controller 直接依赖多个 handler / port（降低装配复杂度）
+ *
+ * 注意事项：
+ * - 该类保持无状态
+ * - 不包含领域规则细节
+ *
+ * 变更说明：
+ * - 已迁移到 CQRS 调度路径（通过 CommandBus.execute() 调用 handler）
+ * - Handler 通过 @CommandHandler 装饰器自动注册到 CommandBus
  */
+@Injectable()
 export class IdentityApplicationService {
-	private readonly registerUserHandler: RegisterUserCommandHandler;
+	constructor(private readonly commandBus: CommandBus) {}
 
-	constructor(repo: IUserRepository, outbox: IOutbox, ctx: OksaiRequestContextService, uow?: DatabaseUnitOfWork) {
-		this.registerUserHandler = new RegisterUserCommandHandler(repo, outbox, ctx, uow);
-	}
-
+	/**
+	 * @description 注册用户
+	 * @param command - 命令
+	 * @returns 用户 ID
+	 */
 	async registerUser(command: RegisterUserCommand): Promise<{ userId: string }> {
-		return await this.registerUserHandler.execute(command);
+		return await this.commandBus.execute<{ userId: string }>(command);
 	}
 }
-

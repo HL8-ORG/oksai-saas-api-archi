@@ -1,19 +1,31 @@
+import { Injectable } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@oksai/cqrs';
 import { OksaiRequestContextService } from '@oksai/context';
 import type { IOutbox } from '@oksai/messaging';
 import { createIntegrationEventEnvelope } from '@oksai/messaging';
 import type { DatabaseUnitOfWork } from '@oksai/database';
 import type { IUserRepository } from '../ports/user.repository.port';
-import type { RegisterUserCommand } from '../commands/register-user.command';
+import { REGISTER_USER_COMMAND_TYPE, type RegisterUserCommand } from '../commands/register-user.command';
 import { UserAggregate } from '../../domain/aggregates/user.aggregate';
 
 /**
- * @description 注册用户命令处理器（最小实现）
+ * @description 注册用户命令处理器
+ *
+ * 说明：
+ * - 负责编排：创建聚合 → 持久化 → 发布事件
+ * - 不包含业务规则细节（交由领域对象保证）
+ *
+ * 使用方式：
+ * - 通过 @CommandHandler 装饰器自动注册到 CommandBus
+ * - 由 ApplicationService 通过 commandBus.execute() 调用
  *
  * 强约束：
  * - 发布侧写入 Outbox（不直接 publish）
  * - userId 必须来自可信上下文（后续由 Better Auth 统一生成/管理）
  */
-export class RegisterUserCommandHandler {
+@Injectable()
+@CommandHandler(REGISTER_USER_COMMAND_TYPE)
+export class RegisterUserCommandHandler implements ICommandHandler<RegisterUserCommand, { userId: string }> {
 	constructor(
 		private readonly repo: IUserRepository,
 		private readonly outbox: IOutbox,
@@ -55,4 +67,3 @@ export class RegisterUserCommandHandler {
 		return { userId: command.userId };
 	}
 }
-

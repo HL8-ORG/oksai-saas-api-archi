@@ -1,7 +1,12 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Module, type Provider } from '@nestjs/common';
 import { setupConfigModule, type SetupConfigModuleOptions } from '@oksai/config';
 import { setupLoggerModule } from '@oksai/logger';
-import { getOksaiRequestContextFromCurrent, OksaiContextModule, setupOksaiContextModule, type SetupOksaiContextModuleOptions } from '@oksai/context';
+import {
+	getOksaiRequestContextFromCurrent,
+	OksaiContextModule,
+	setupOksaiContextModule,
+	type SetupOksaiContextModuleOptions
+} from '@oksai/context';
 import { setupDatabaseModule, type SetupDatabaseModuleOptions } from '@oksai/database';
 import { OksaiCqrsModule } from '@oksai/cqrs';
 import { setupEdaModule } from '@oksai/eda';
@@ -18,7 +23,12 @@ import {
 	type SetupMessagingModuleOptions,
 	type IEventBus
 } from '@oksai/messaging';
-import { PgInbox, PgOutbox, setupMessagingPostgresModule, type SetupMessagingPostgresModuleOptions } from '@oksai/messaging-postgres';
+import {
+	PgInbox,
+	PgOutbox,
+	setupMessagingPostgresModule,
+	type SetupMessagingPostgresModuleOptions
+} from '@oksai/messaging-postgres';
 import { ContextAwareEventBus } from '../messaging/context-aware-event-bus';
 import { ContextAwareOutbox } from '../messaging/context-aware-outbox';
 
@@ -85,8 +95,12 @@ export interface SetupOksaiPlatformModuleOptions {
 	 * @description CQRS 用例调度模块（可选）
 	 *
 	 * 说明：
-	 * - 当前阶段仅提供最小骨架（CommandBus/QueryBus + handler 自动注册）
+	 * - 提供 CommandBus/QueryBus + handler 自动注册 + pipeline 横切能力
 	 * - 强约束：不提供 EventBus/Saga（集成事件通道必须使用 `@oksai/eda`）
+	 * - pipeline 默认启用审计和指标管道
+	 *
+	 * 使用方式：
+	 * - 启用后，CommandBus.execute() 会自动执行审计和指标管道
 	 */
 	cqrs?: {
 		/**
@@ -126,10 +140,13 @@ export class OksaiPlatformModule {
 	 */
 	static init(options: SetupOksaiPlatformModuleOptions = {}): DynamicModule {
 		assertPlatformKernelOptions(options);
-		const edaFacadeEnabled = String(process.env.EDA_FACADE_ENABLED ?? '').trim().toLowerCase() === 'true';
+		const edaFacadeEnabled =
+			String(process.env.EDA_FACADE_ENABLED ?? '')
+				.trim()
+				.toLowerCase() === 'true';
 		const plugins = options.plugins ?? [];
 		const baseConfig = options.config ?? {};
-		const pretty = options.prettyLogs ?? ((process.env.NODE_ENV ?? 'development') === 'development');
+		const pretty = options.prettyLogs ?? (process.env.NODE_ENV ?? 'development') === 'development';
 		const cqrsEnabled = options.cqrs?.enabled ?? false;
 
 		const databaseImports = options.database ? [setupDatabaseModule({ ...options.database, isGlobal: true })] : [];
@@ -191,9 +208,12 @@ export class OksaiPlatformModule {
 				setupConfigModule(baseConfig),
 				...databaseImports,
 				...messagingPostgresImports,
+				// CQRS 模块装配（启用后自动使用 pipeline 审计和指标管道）
 				...(cqrsEnabled ? [OksaiCqrsModule] : []),
-				// messaging/eda 作为“平台能力”由 app-kit 统一装配并导出（避免多个 global 模块争抢同一 token）
-				edaFacadeEnabled ? (edaModule as DynamicModule) : setupMessagingModule({ ...(options.messaging ?? {}), isGlobal: false }),
+				// messaging/eda 作为"平台能力"由 app-kit 统一装配并导出（避免多个 global 模块争抢同一 token）
+				edaFacadeEnabled
+					? (edaModule as DynamicModule)
+					: setupMessagingModule({ ...(options.messaging ?? {}), isGlobal: false }),
 				setupLoggerModule({
 					pretty,
 					customProps: (req) => {
@@ -238,8 +258,6 @@ export class OksaiPlatformModule {
 function assertPlatformKernelOptions(options: SetupOksaiPlatformModuleOptions): void {
 	// messagingPostgres 依赖 database：否则 PgInbox/PgOutbox 无法工作
 	if (options.messagingPostgres && !options.database) {
-		throw new Error(
-			'装配配置错误：启用 messagingPostgres 时必须同时启用 database（MikroORM 连接/迁移）。'
-		);
+		throw new Error('装配配置错误：启用 messagingPostgres 时必须同时启用 database（MikroORM 连接/迁移）。');
 	}
 }

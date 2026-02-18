@@ -5,7 +5,9 @@
 	"type": "commonjs",
 	"main": "dist/src/index.js",
 	"types": "dist/src/index.d.ts",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
@@ -18,6 +20,7 @@
 		"@nestjs/common": "catalog:",
 		"@nestjs/core": "catalog:",
 		"@oksai/context": "workspace:*",
+		"@oksai/cqrs": "workspace:*",
 		"rxjs": "catalog:"
 	},
 	"devDependencies": {
@@ -28,4 +31,3 @@
 		"ts-node": "^10.9.2"
 	}
 }
-

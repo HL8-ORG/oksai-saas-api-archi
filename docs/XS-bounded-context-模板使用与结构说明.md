@@ -3,6 +3,8 @@
 > 适用路径：`tools/templates/bounded-context/`
 >
 > 本文用于解释模板的**使用方式**与**目录结构含义**，帮助你在本仓库的强约束（Clean Architecture + CQRS + ES + EDA + 多租户）下快速创建新的 `libs/domains/<context>/` 包。
+>
+> **最新更新（2026-02-18）**：模板已迁移到 CQRS 调度路径（`@oksai/cqrs`），用例通过 `CommandBus.execute()` 调用。
 
 ## 一、模板解决什么问题
 
@@ -127,18 +129,59 @@ libs/domains/<context>/src
 
 ### 5.2 Use-cases 在代码中如何体现？
 
-在模板中，“一个 Use-case”通常由以下组成：
+模板已迁移到 **CQRS 调度路径**（`@oksai/cqrs`）：
 
-- 输入契约：`Create__CONTEXT__Command`
-- 用例处理器：`Create__CONTEXT__CommandHandler.execute()`
-- 端口依赖：`I__CONTEXT__Repository`、`IOutbox`、`DatabaseUnitOfWork`、`OksaiRequestContextService`
-- 入口 facade：`__CONTEXT__ApplicationService`（面向 Controller）
+**输入契约（Command）**：
+
+```typescript
+import type { ICommand } from '@oksai/cqrs';
+
+export const CREATE___CONTEXT___COMMAND_TYPE = 'Create__CONTEXT__' as const;
+
+export interface Create__CONTEXT__Command extends ICommand<typeof CREATE___CONTEXT___COMMAND_TYPE> {
+	name: string;
+}
+```
+
+**用例处理器（CommandHandler）**：
+
+```typescript
+@Injectable()
+@CommandHandler(CREATE___CONTEXT___COMMAND_TYPE)
+export class Create__CONTEXT__CommandHandler implements ICommandHandler<Create__CONTEXT__Command, { id: string }> {
+	constructor(
+		private readonly repo: I__CONTEXT__Repository,
+		private readonly outbox: IOutbox,
+		private readonly ctx: OksaiRequestContextService,
+		private readonly uow?: DatabaseUnitOfWork
+	) {}
+
+	async execute(command: Create__CONTEXT__Command): Promise<{ id: string }> {
+		// 用例逻辑...
+	}
+}
+```
+
+**入口 facade（ApplicationService）**：
+
+```typescript
+@Injectable()
+export class __CONTEXT__ApplicationService {
+	constructor(private readonly commandBus: CommandBus) {}
+
+	async create(command: Create__CONTEXT__Command): Promise<{ id: string }> {
+		return await this.commandBus.execute<{ id: string }>(command);
+	}
+}
+```
 
 这种形式的好处：
 
 - 用例边界清晰（一个 handler 一个用例）
+- Handler 通过 `@CommandHandler` 装饰器自动注册到 `CommandBus`
 - 单元测试容易（handler 只依赖端口接口）
 - 基础设施可替换（inMemory / eventStore / pg read model）
+- 统一调度入口（所有用例通过 `CommandBus.execute()` 调用）
 
 ### 5.3 tenantId 强约束（必须来自 CLS）
 
@@ -186,17 +229,36 @@ libs/domains/<context>/src
 
 ## 七、presentation（表现层）：Nest 装配模块（端口绑定）
 
-`src/presentation/nest/__context__.module.ts` 是模板的“装配入口”，它做两件事：
+`src/presentation/nest/__context__.module.ts` 是模板的"装配入口"，它负责：
 
+- 导入 `OksaiCqrsModule`（启用 CQRS 调度）
+- 注册 Handler provider（`@CommandHandler` 装饰器会自动注册到 `CommandBus`）
 - 把 **端口接口**绑定到**基础设施实现**
 - 支持 `inMemory` / `eventStore` 两条装配路径
 
-典型装配内容：
+**典型装配内容**：
 
-- `__CONTEXT__ApplicationService`（用例入口）
-- 仓储实现（InMemory / EventSourced）
-- `Pg__CONTEXT__ReadModel` + `OKSAI___CONTEXT___READ_MODEL_TOKEN` 绑定
-- `__CONTEXT__ProjectionSubscriber`（启动时注册订阅）
+```typescript
+@Module({
+	imports: [OksaiCqrsModule],
+	providers: [
+		InMemory__CONTEXT__Repository,
+		Create__CONTEXT__CommandHandler, // CQRS Handler
+		__CONTEXT__ApplicationService // 注入 CommandBus
+	],
+	exports: [__CONTEXT__ApplicationService]
+})
+export class __CONTEXT__Module {
+	static init(options: { persistence?: 'inMemory' | 'eventStore' } = {}): DynamicModule {
+		// 根据 persistence 选择仓储实现...
+	}
+}
+```
+
+**强约束**：
+
+- 必须在 `@oksai/app-kit` 中启用 `cqrs.enabled: true`，或在模块内自行导入 `OksaiCqrsModule`
+- Handler 必须使用 `@Injectable` + `@CommandHandler` 装饰器
 
 ## 八、测试模板：如何验证闭环
 
@@ -228,4 +290,20 @@ libs/domains/<context>/src
 ### 9.3 为什么写侧要写 Outbox 而不是直接 publish？
 
 强约束：先落库（EventStore/Outbox）再异步投递，避免“业务已提交但消息丢失/反之”的一致性问题。
+### 9.4 为什么使用 CommandBus 调度而不是直接调用 Handler？
+
+使用 `CommandBus.execute()` 调度的好处：
+
+- **统一入口**：所有用例通过同一入口调用，便于添加横切能力（日志、指标、鉴权等）
+- **自动注册**：Handler 通过 `@CommandHandler` 装饰器自动注册，减少装配样板代码
+- **解耦**：Controller/Service 只依赖 `CommandBus`，不直接依赖具体 Handler
+- **可扩展**：后续可通过 pipeline 机制添加用例级横切能力（Phase 5）
+
+### 9.5 Command 的 type 字段有什么作用？
+
+`type` 字段是 `CommandBus` 路由的依据：
+
+- 用于将 Command 绑定到对应的 Handler
+- 用于可观测性（日志、指标中记录用例名称）
+- 必须是稳定字符串，避免随意改名
 

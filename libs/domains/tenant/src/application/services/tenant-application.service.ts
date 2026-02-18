@@ -1,13 +1,9 @@
-import type { IOutbox } from '@oksai/messaging';
-import type { DatabaseUnitOfWork } from '@oksai/database';
-import type { OksaiRequestContextService } from '@oksai/context';
-import type { ITenantRepository } from '../ports/tenant.repository.port';
+import { Injectable } from '@nestjs/common';
+import { CommandBus } from '@oksai/cqrs';
 import type { CreateTenantCommand } from '../commands/create-tenant.command';
-import { CreateTenantCommandHandler } from '../handlers/create-tenant.command-handler';
 
 /**
- * @description
- * Tenant 应用服务（用例门面）。
+ * @description Tenant 应用服务（用例门面）
  *
  * 使用场景：
  * - Presentation 层（Controller/Resolver）调用应用层时的入口点
@@ -16,13 +12,14 @@ import { CreateTenantCommandHandler } from '../handlers/create-tenant.command-ha
  * 注意事项：
  * - 该类保持无状态
  * - 不包含领域规则细节
+ *
+ * 变更说明：
+ * - 已迁移到 CQRS 调度路径（通过 CommandBus.execute() 调用 handler）
+ * - Handler 通过 @CommandHandler 装饰器自动注册到 CommandBus
  */
+@Injectable()
 export class TenantApplicationService {
-	private readonly createTenantHandler: CreateTenantCommandHandler;
-
-	constructor(repo: ITenantRepository, outbox: IOutbox, ctx: OksaiRequestContextService, uow?: DatabaseUnitOfWork) {
-		this.createTenantHandler = new CreateTenantCommandHandler(repo, outbox, ctx, uow);
-	}
+	constructor(private readonly commandBus: CommandBus) {}
 
 	/**
 	 * @description 创建租户
@@ -30,7 +27,6 @@ export class TenantApplicationService {
 	 * @returns 新租户 ID
 	 */
 	async createTenant(command: CreateTenantCommand): Promise<{ tenantId: string }> {
-		return await this.createTenantHandler.execute(command);
+		return await this.commandBus.execute<{ tenantId: string }>(command);
 	}
 }
-
