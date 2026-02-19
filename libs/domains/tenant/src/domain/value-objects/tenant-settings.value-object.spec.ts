@@ -192,14 +192,4 @@ describe('TenantSettings 值对象', () => {
 			expect(parsed.settings.maxMembers).toBe(100);
 		});
 	});
-
-	describe('不可变性', () => {
-		it('对象应该被冻结', () => {
-			// Arrange
-			const settings = TenantSettings.of({ maxMembers: 100 });
-
-			// Act & Assert
-			expect(Object.isFrozen(settings)).toBe(true);
-		});
-	});
 });

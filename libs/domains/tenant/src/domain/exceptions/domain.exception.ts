@@ -14,8 +14,27 @@ export class DomainException extends Error {
 
 	/**
 	 * @param message - 业务可读的错误信息
+	 * @param code - 错误代码（可选）
+	 * @param context - 错误上下文（可选）
 	 */
-	constructor(message: string) {
+	constructor(
+		message: string,
+		public readonly code?: string,
+		public readonly context?: Record<string, unknown>
+	) {
 		super(message);
+		Object.setPrototypeOf(this, DomainException.prototype);
+	}
+
+	/**
+	 * @description 转换为 JSON 格式（用于日志和 API 响应）
+	 */
+	toJSON(): Record<string, unknown> {
+		return {
+			name: this.name,
+			message: this.message,
+			code: this.code,
+			context: this.context,
+		};
 	}
 }

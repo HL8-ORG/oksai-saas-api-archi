@@ -27,6 +27,7 @@
 		"@oksai/database": "workspace:*",
 		"@oksai/eda": "workspace:*",
 		"@oksai/event-store": "workspace:*",
+		"@oksai/kernel": "workspace:*",
 		"@oksai/messaging": "workspace:*",
 		"@nestjs/common": "catalog:"
 	},

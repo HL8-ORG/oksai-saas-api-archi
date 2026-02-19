@@ -1,11 +1,12 @@
 import { AggregateRoot } from '@oksai/event-store';
-import { DomainException } from '../exceptions/domain.exception';
+import { DomainException, BusinessRuleValidator } from '@oksai/kernel';
 import type { DomainEvent } from '../events/domain-event';
 import { TenantCreatedEvent } from '../events/tenant-created.event';
 import { TenantId } from '../value-objects/tenant-id.value-object';
 import { TenantName } from '../value-objects/tenant-name.value-object';
 import { TenantSettings } from '../value-objects/tenant-settings.value-object';
 import { CanAddMemberSpecification } from '../specifications';
+import { TenantNameLengthRule } from '../rules/tenant-name-length.rule';
 
 /**
  * @description 租户成员信息
@@ -61,7 +62,7 @@ export class TenantAggregate extends AggregateRoot<TenantEvent> {
 
 		agg.initAuditTimestamps();
 
-		agg.addDomainEvent(new TenantCreatedEvent(id.toString(), name.toString()));
+		agg.addDomainEvent(new TenantCreatedEvent(id.toString(), { name: name.toString() }));
 
 		return agg;
 	}
@@ -78,15 +79,19 @@ export class TenantAggregate extends AggregateRoot<TenantEvent> {
 	 * @throws {DomainException} 当事件流非法或缺少创建事件时抛出
 	 */
 	static rehydrate(id: TenantId, events: DomainEvent[]): TenantAggregate {
-		const agg = new TenantAggregate(id, TenantName.of('__rehydrate__'), TenantSettings.default());
+		const agg = new TenantAggregate(id, TenantName.of('rehydrate-placeholder'), TenantSettings.default());
 		for (const e of events) {
 			agg.apply(e);
 			agg.version += 1;
 		}
 		agg.resetEventStateAfterRehydrate();
 
-		if (agg._name.getValue() === '__rehydrate__') {
-			throw new DomainException(`租户事件流非法：缺少创建事件（tenantId=${id.toString()}）。`);
+		if (agg._name.getValue() === 'rehydrate-placeholder') {
+			throw new DomainException(
+				`租户事件流非法：缺少创建事件（tenantId=${id.toString()}）。`,
+				'TENANT_EVENT_STREAM_INVALID',
+				{ tenantId: id.toString() }
+			);
 		}
 		return agg;
 	}
@@ -107,7 +112,7 @@ export class TenantAggregate extends AggregateRoot<TenantEvent> {
 	addMember(userId: string): void {
 		const uid = String(userId ?? '').trim();
 		if (!uid) {
-			throw new DomainException('userId 不能为空');
+			throw new DomainException('userId 不能为空', 'USER_ID_EMPTY');
 		}
 
 		if (this._members.some((m) => m.userId === uid)) {
@@ -117,7 +122,9 @@ export class TenantAggregate extends AggregateRoot<TenantEvent> {
 		const canAddMember = new CanAddMemberSpecification();
 		if (!canAddMember.isSatisfiedBy(this)) {
 			throw new DomainException(
-				`超过租户成员上限（当前：${this._members.length}，上限：${this._settings.getMaxMembers()}）`
+				`超过租户成员上限（当前：${this._members.length}，上限：${this._settings.getMaxMembers()}）`,
+				'TENANT_MEMBER_LIMIT_EXCEEDED',
+				{ current: this._members.length, max: this._settings.getMaxMembers() }
 			);
 		}
 
@@ -137,7 +144,7 @@ export class TenantAggregate extends AggregateRoot<TenantEvent> {
 	removeMember(userId: string): void {
 		const uid = String(userId ?? '').trim();
 		if (!uid) {
-			throw new DomainException('userId 不能为空');
+			throw new DomainException('userId 不能为空', 'USER_ID_EMPTY');
 		}
 
 		const index = this._members.findIndex((m) => m.userId === uid);
@@ -151,9 +158,19 @@ export class TenantAggregate extends AggregateRoot<TenantEvent> {
 	 * @description 更新租户名称
 	 *
 	 * @param name - 新名称
+	 * @throws {DomainException} 当名称验证失败时抛出
 	 */
-	updateName(name: TenantName): void {
+	async updateName(name: TenantName): Promise<void> {
 		if (this._name.equals(name)) return;
+
+		// 使用业务规则验证器
+		const ruleError = await BusinessRuleValidator.validate(
+			new TenantNameLengthRule(name.getValue())
+		);
+
+		if (ruleError) {
+			throw ruleError;
+		}
 
 		this._name = name;
 		this.markUpdated();
@@ -171,7 +188,9 @@ export class TenantAggregate extends AggregateRoot<TenantEvent> {
 	updateSettings(settings: TenantSettings): void {
 		if (settings.getMaxMembers() < this._members.length) {
 			throw new DomainException(
-				`新成员上限（${settings.getMaxMembers()}）不能小于当前成员数（${this._members.length}）`
+				`新成员上限（${settings.getMaxMembers()}）不能小于当前成员数（${this._members.length}）`,
+				'TENANT_SETTINGS_INVALID_MAX_MEMBERS',
+				{ newMax: settings.getMaxMembers(), currentMembers: this._members.length }
 			);
 		}
 

@@ -16,14 +16,34 @@ alwaysApply: true
 
 构建企业级多租户 SAAS 平台，支持 MCP、数据分析平台、AI 平台等业务场景，采用平台化 + 插件化架构设计。
 
-**核心目标**：
+### 四大核心目标
+
+| 核心目标             | 关键技术                        | 预期价值                         |
+| -------------------- | ------------------------------- | -------------------------------- |
+| **数据分析平台**     | 事件溯源 + 投影 + ClickHouse    | 实时分析、历史回放、多维度统计   |
+| **外部数据接口**     | Hexagonal Ports + 多种 Adapters | 统一接入、可插拔、健康监控       |
+| **异构系统数据仓库** | Delta Lake + Schema Evolution   | ACID 事务、Schema 演进、时间旅行 |
+| **AI 能力嵌入**      | 向量数据库 + AI 推理服务        | 智能分析、相似性搜索、自动化决策 |
+
+### 架构选择
+
+**DDD + Hexagonal Architecture + CQRS + Event Sourcing + EDA**
+
+| 架构模式           | 解决的问题                       | 对应目标              |
+| ------------------ | -------------------------------- | --------------------- |
+| **DDD**            | 复杂业务领域建模                 | 所有目标              |
+| **Hexagonal**      | 多适配器插拔能力                 | 外部数据接入、AI 嵌入 |
+| **CQRS**           | 读写分离，分析查询优化           | 数据分析              |
+| **Event Sourcing** | 完整审计，时间旅行，数据分析基础 | 数据分析、数据仓库    |
+| **EDA**            | 松耦合跨域通信                   | 所有目标              |
+
+### 功能目标
 
 - 提供可组合的平台能力，支持按需装配功能
 - 实现多租户行级隔离，确保数据安全
 - 支持事件驱动架构，实现模块解耦
 - 分离平台管理 API 和业务 API，便于独立演进
 - 提供完整的认证授权体系（AuthN + AuthZ + RBAC）
-- 遵循 Clean Architecture + Event Driven Architecture 架构设计
 
 ## 核心原则
 
@@ -82,9 +102,513 @@ alwaysApply: true
 - 项目特定文档应放在项目目录下的 `docs/` 目录中，与 `src/` 同级
 - 全局技术文档放在 `docs/spec-plan/` 和 `.cursor/docs/`
 
-### TypeScript 类型定义
+---
 
-#### 类型定义
+## 领域模型设计规范（DDD）
+
+### 聚合根基类
+
+所有聚合根必须继承 `AggregateRoot` 基类，支持领域事件管理：
+
+```typescript
+// libs/shared/kernel/src/domain/aggregate-root.base.ts
+export abstract class AggregateRoot<TEvent extends DomainEvent = DomainEvent> {
+	protected readonly _domainEvents: TEvent[] = [];
+
+	/**
+	 * 添加领域事件
+	 */
+	protected addEvent(event: TEvent): void {
+		this._domainEvents.push(event);
+	}
+
+	/**
+	 * 获取并清除领域事件
+	 */
+	clearEvents(): TEvent[] {
+		const events = [...this._domainEvents];
+		this._domainEvents.length = 0;
+		return events;
+	}
+}
+```
+
+### 值对象模式
+
+所有值对象必须继承 `ValueObjectBase`，提供统一的验证和创建机制：
+
+```typescript
+// ✅ 正确 - 值对象模式
+export class TenantName extends ValueObjectBase<{ value: string }> {
+	private constructor(props: { value: string }) {
+		super(props);
+	}
+
+	/**
+	 * 创建租户名称值对象
+	 *
+	 * @param value - 租户名称字符串
+	 * @returns Either<TenantName, ValidationError>
+	 */
+	public static create(value: string): Either<TenantName, ValidationError> {
+		// 验证规则 1：长度检查
+		if (value.length < 2 || value.length > 100) {
+			return fail(
+				new ValidationError(
+					`租户名称长度必须在 2-100 个字符之间，当前长度：${value.length}`,
+					'tenantName',
+					value
+				)
+			);
+		}
+
+		// 验证规则 2：字符格式检查
+		if (!/^[\u4e00-\u9fa5a-zA-Z0-9-]+$/.test(value)) {
+			return fail(new ValidationError('租户名称只能包含中文、英文、数字和连字符', 'tenantName', value));
+		}
+
+		return ok(new TenantName({ value }));
+	}
+
+	/**
+	 * 从持久化数据重建值对象（跳过验证）
+	 * ⚠️ 仅用于从数据库加载已知合法数据
+	 */
+	public static fromPersistence(value: string): TenantName {
+		return new TenantName({ value });
+	}
+
+	get value(): string {
+		return this.props.value;
+	}
+}
+```
+
+**验收标准**：
+
+- 所有值对象继承 `ValueObjectBase`
+- 所有值对象提供 `create` 静态方法返回 `Either`
+- 所有值对象提供 `fromPersistence` 方法
+- 单元测试覆盖所有验证规则
+
+### 业务规则封装
+
+业务规则必须实现 `IBusinessRule` 接口，支持独立测试和复用：
+
+```typescript
+// libs/shared/kernel/src/domain/business-rule.base.ts
+export interface IBusinessRule {
+	readonly Error: DomainException;
+	isBroken(): boolean | Promise<boolean>;
+}
+
+export class BusinessRuleValidator {
+	static async validate(...rules: IBusinessRule[]): Promise<DomainException | null> {
+		for (const rule of rules) {
+			if (await rule.isBroken()) {
+				return rule.Error;
+			}
+		}
+		return null;
+	}
+}
+
+// ✅ 正确 - 业务规则封装
+export class TenantNameLengthRule extends BusinessRuleBase {
+	constructor(private readonly name: string) {
+		super('TenantNameLengthRule');
+	}
+
+	readonly Error = new DomainException(
+		`租户名称长度必须在 2-100 个字符之间，当前长度：${this.name.length}`,
+		'TENANT_NAME_LENGTH_INVALID'
+	);
+
+	isBroken(): boolean {
+		return this.name.length < 2 || this.name.length > 100;
+	}
+}
+
+// 在聚合根中使用
+export class TenantAggregate extends AggregateRoot<TenantEvent> {
+	public static async create(
+		props: CreateTenantProps,
+		tenantRepository: ITenantRepository
+	): Promise<Either<TenantAggregate, DomainException>> {
+		// 批量验证业务规则
+		const ruleError = await BusinessRuleValidator.validate(
+			new TenantNameLengthRule(props.name),
+			new TenantSlugUniqueRule(props.slug, tenantRepository)
+		);
+
+		if (ruleError) {
+			return fail(ruleError);
+		}
+
+		// 创建租户...
+	}
+}
+```
+
+### 领域事件设计
+
+所有领域事件必须继承 `DomainEventBase`，包含完整元数据：
+
+```typescript
+// libs/shared/kernel/src/domain/domain-event.base.ts
+export abstract class DomainEventBase<TPayload = unknown> {
+	readonly eventId: string;
+	abstract readonly eventName: string;
+	readonly version: number = 1;
+	readonly aggregateId: string;
+	readonly aggregateType: string;
+	readonly occurredAt: Date;
+	readonly payload: TPayload;
+	readonly metadata: {
+		tenantId: string;
+		userId: string;
+		correlationId: string;
+		causationId?: string;
+	};
+}
+
+// ✅ 正确 - 领域事件
+export class TenantCreatedEvent extends DomainEventBase<TenantCreatedPayload> {
+	readonly eventName = 'tenant.created';
+	readonly version = 1;
+
+	constructor(aggregateId: string, payload: TenantCreatedPayload, metadata?: Partial<DomainEventBase['metadata']>) {
+		super(aggregateId, 'Tenant', payload, metadata);
+	}
+}
+```
+
+---
+
+## Hexagonal Architecture 规范
+
+### 端口（Ports）设计
+
+端口定义领域层与外部世界的交互契约：
+
+```typescript
+// ✅ 正确 - 数据源适配器端口
+export interface IDataSourceAdapter {
+	readonly type: DataSourceType;
+	connect(): Promise<Either<void, ConnectionError>>;
+	disconnect(): Promise<void>;
+	testConnection(): Promise<Either<void, ConnectionError>>;
+	fetchSchema(): Promise<Either<DataSchema, SchemaError>>;
+	fetchData(query: DataQuery): Promise<Either<RawData[], QueryError>>;
+	streamData(query: DataQuery): AsyncIterable<Either<RawData, QueryError>>;
+	getHealthStatus(): Promise<DataSourceHealth>;
+}
+
+// ✅ 正确 - 向量数据库端口
+export interface IVectorDatabase {
+	insertVector(params: InsertVectorParams): Promise<Either<void, VectorDBError>>;
+	searchSimilar(params: SearchSimilarParams): Promise<Either<SearchResult[], VectorDBError>>;
+	deleteVector(id: string): Promise<Either<void, VectorDBError>>;
+	updateVector(params: UpdateVectorParams): Promise<Either<void, VectorDBError>>;
+}
+```
+
+### 适配器（Adapters）实现
+
+适配器位于基础设施层，实现端口接口：
+
+```typescript
+// ✅ 正确 - PostgreSQL 适配器
+export class PostgreSQLDataSourceAdapter implements IDataSourceAdapter {
+	readonly type = DataSourceType.POSTGRESQL;
+
+	async connect(): Promise<Either<void, ConnectionError>> {
+		// 实现连接逻辑...
+	}
+
+	async fetchData(query: DataQuery): Promise<Either<RawData[], QueryError>> {
+		// 实现查询逻辑...
+	}
+}
+```
+
+### 目录结构
+
+```
+libs/domains/tenant/
+├── src/
+│   ├── domain/                    # 领域层（核心）
+│   │   ├── aggregates/           # 聚合根
+│   │   ├── entities/             # 实体
+│   │   ├── value-objects/        # 值对象
+│   │   ├── events/               # 领域事件
+│   │   ├── rules/                # 业务规则
+│   │   └── ports/                # 端口接口（Driven Ports）
+│   ├── application/              # 应用层
+│   │   ├── commands/             # 命令
+│   │   ├── handlers/             # 命令处理器
+│   │   ├── queries/              # 查询
+│   │   └── services/             # 应用服务
+│   └── infrastructure/           # 基础设施层
+│       ├── adapters/             # 适配器（Driven Adapters）
+│       ├── projections/          # 投影
+│       └── repositories/         # 仓储实现
+└── tests/
+    ├── __tests__/                # BDD 测试套件
+    ├── builders/                 # 测试数据构建器
+    └── mocks/                    # Mock 对象
+```
+
+---
+
+## 事件溯源与投影规范
+
+### 事件存储接口
+
+```typescript
+// libs/shared/event-store/src/event-store.base.ts
+export abstract class EventStoreBase {
+	/**
+	 * 追加事件到事件流
+	 */
+	abstract appendToStream(
+		streamId: string,
+		events: DomainEvent[],
+		expectedVersion?: number
+	): Promise<Either<void, ConcurrencyError>>;
+
+	/**
+	 * 从事件流加载事件
+	 */
+	abstract loadEvents(streamId: string, fromVersion?: number, toVersion?: number): Promise<DomainEvent[]>;
+
+	/**
+	 * 加载所有事件（用于分析）
+	 */
+	abstract loadAllEvents(filter?: EventFilter): Promise<AsyncIterable<DomainEvent>>;
+
+	/**
+	 * 保存快照
+	 */
+	abstract saveSnapshot(streamId: string, snapshot: Snapshot): Promise<void>;
+
+	/**
+	 * 加载快照
+	 */
+	abstract loadSnapshot(streamId: string): Promise<Snapshot | null>;
+}
+```
+
+### 投影机制
+
+投影将事件流转换为优化的读模型：
+
+```typescript
+// libs/shared/event-store/src/projections/projection.base.ts
+export abstract class ProjectionBase<TReadModel = unknown> {
+	abstract readonly name: string;
+	abstract readonly subscribedEvents: string[];
+	abstract handle(event: DomainEvent): Promise<void>;
+	abstract rebuild(): Promise<void>;
+	abstract getStatus(): Promise<ProjectionStatus>;
+}
+
+// ✅ 正确 - 租户分析投影
+export class TenantAnalyticsProjection extends ProjectionBase<TenantAnalyticsReadModel> {
+	readonly name = 'TenantAnalyticsProjection';
+	readonly subscribedEvents = ['TenantCreatedEvent', 'TenantActivatedEvent', 'MemberAddedEvent'];
+
+	async handle(event: DomainEvent): Promise<void> {
+		switch (event.eventName) {
+			case 'TenantCreatedEvent':
+				await this.handleTenantCreated(event as TenantCreatedEvent);
+				break;
+			// ... 其他事件处理
+		}
+	}
+}
+```
+
+---
+
+## 集成事件版本控制
+
+### 集成事件设计
+
+集成事件支持多版本并存，确保向后兼容：
+
+```typescript
+// libs/shared/eda/src/integration-event.base.ts
+export abstract class IntegrationEventBase<TPayload = unknown> {
+	readonly eventId: string;
+	abstract readonly eventName: string;
+	readonly version: string;
+	abstract readonly boundedContextId: string;
+	readonly payload: TPayload;
+	readonly metadata: {
+		tenantId: string;
+		userId: string;
+		correlationId: string;
+		causationId?: string;
+		occurredAt: Date;
+	};
+}
+
+// ✅ 正确 - 支持多版本的集成事件
+export class TenantCreatedIntegrationEvent extends IntegrationEventBase<
+	TenantCreatedPayloadV1 | TenantCreatedPayloadV2
+> {
+	static readonly versions = ['v1', 'v2'] as const;
+	static readonly boundedContextId = 'Tenant';
+	static readonly eventName = 'tenant.created';
+
+	/**
+	 * 从领域事件创建集成事件（包含所有版本）
+	 */
+	static create(event: TenantCreatedDomainEvent): TenantCreatedIntegrationEvent[] {
+		return this.versions.map((version) => {
+			const mapper = this.versionMappers[version];
+			const data = mapper(event);
+			return new TenantCreatedIntegrationEvent(data, version, event.metadata);
+		});
+	}
+
+	static readonly versionMappers: Record<string, VersionMapper> = {
+		v1: this.toIntegrationDataV1.bind(this),
+		v2: this.toIntegrationDataV2.bind(this)
+	};
+}
+```
+
+### Schema 契约定义
+
+所有集成事件必须有对应的 JSON Schema：
+
+```typescript
+// libs/contracts/src/tenant/tenant-created.v1.schema.ts
+export const TenantCreatedV1Schema = {
+	$id: 'tenant.created.v1',
+	type: 'object',
+	required: ['tenantId', 'name', 'slug', 'createdAt'],
+	properties: {
+		tenantId: { type: 'string', format: 'uuid', description: '租户唯一标识' },
+		name: { type: 'string', minLength: 2, maxLength: 100, description: '租户名称' },
+		slug: { type: 'string', pattern: '^[a-z0-9-]+$', description: '租户标识' },
+		createdAt: { type: 'string', format: 'date-time', description: '创建时间' }
+	},
+	additionalProperties: false
+} as const;
+```
+
+---
+
+## BDD 测试规范
+
+### 测试目录结构
+
+```
+libs/domains/tenant/src/tests/
+├── __tests__/                    # BDD 测试套件
+│   ├── create-tenant/           # 创建租户用例
+│   │   ├── create-tenant.steps.ts
+│   │   ├── create-tenant.mock.ts
+│   │   └── create-tenant-write-repo.mock.ts
+│   └── activate-tenant/         # 激活租户用例
+├── builders/                     # 测试数据构建器
+│   ├── tenant-props.builder.ts
+│   └── tenant-aggregate.builder.ts
+└── mocks/                        # Mock 对象
+    ├── tenant-write-repo.mock.ts
+    └── tenant-read-repo.mock.ts
+```
+
+### BDD 测试用例编写
+
+```typescript
+// ✅ 正确 - BDD 测试模式
+describe('Create tenant feature test', () => {
+	/**
+	 * 成功场景：创建租户成功
+	 */
+	it('Tenant created successfully', async () => {
+		// given - 准备
+		const mockTenantRepo = new MockTenantWriteRepo();
+		const createTenantCommand = new CreateTenantCommand({
+			name: '测试租户',
+			slug: 'test-tenant',
+			type: TenantType.ORGANIZATION
+		});
+
+		// when - 执行
+		const createTenantHandler = new CreateTenantHandler(mockTenantRepo.getMock());
+		const result = await createTenantHandler.execute(createTenantCommand);
+
+		// then - 验证
+		expect(result.isOk()).toBe(true);
+		expect(mockTenantRepo.mockSaveMethod).toHaveBeenCalledWith(expect.any(TenantAggregate));
+
+		const savedTenant = mockTenantRepo.mockSaveMethod.mock.calls[0][0];
+		expect(savedTenant.domainEvents[0]).toBeInstanceOf(TenantCreatedEvent);
+	});
+
+	/**
+	 * 失败场景：租户标识已存在
+	 */
+	it('Tenant creation failed, slug already exists', async () => {
+		// given
+		const mockTenantRepo = new MockTenantWriteRepo();
+		mockTenantRepo.setupExistingTenant({ slug: 'test-tenant' });
+
+		// when
+		const result = await createTenantHandler.execute(createTenantCommand);
+
+		// then
+		expect(result.isFail()).toBe(true);
+		expect(result.value).toBeInstanceOf(DomainException);
+		expect(result.value.message).toContain('租户标识已存在');
+	});
+});
+```
+
+### 测试 Builder 模式
+
+```typescript
+// ✅ 正确 - Builder 模式构建测试数据
+export class TenantPropsBuilder {
+	private name: string = '测试租户';
+	private slug: string = 'test-tenant';
+	private type: TenantType = TenantType.ORGANIZATION;
+	private status: TenantStatus = TenantStatus.ACTIVE;
+
+	withName(name: string): TenantPropsBuilder {
+		this.name = name;
+		return this;
+	}
+
+	withSlug(slug: string): TenantPropsBuilder {
+		this.slug = slug;
+		return this;
+	}
+
+	build(): TenantProps {
+		return {
+			name: TenantName.create(this.name).value as TenantName,
+			slug: TenantSlug.create(this.slug).value as TenantSlug,
+			type: this.type,
+			status: this.status
+		};
+	}
+}
+
+// 使用
+const props = new TenantPropsBuilder().withName('自定义名称').withSlug('custom-slug').build();
+```
+
+---
+
+## TypeScript 类型定义
+
+### 类型定义
 
 - 使用接口表示公共契约
 - 使用类表示实现
@@ -114,28 +638,44 @@ async findUser(id: string): Promise<User | null> {
 }
 ```
 
-#### 泛型类型
+### Either 模式
 
-- 使用 `T` 表示泛型类型参数
-- 使用 `K` 表示键类型
-- 使用 `V` 表示值类型
+使用 `Either` 模式处理可能失败的操作：
 
 ```typescript
-// ✅ 正确
-interface Repository<T> {
-	findOne(id: string): Promise<T | null>;
-	findMany(filter: Filter<T>): Promise<T[]>;
+// ✅ 正确 - Either 模式
+import { Either, ok, fail } from '@oksai/shared';
+
+async createTenant(props: CreateTenantProps): Promise<Either<TenantAggregate, DomainException>> {
+	// 验证
+	const ruleError = await BusinessRuleValidator.validate(
+		new TenantNameLengthRule(props.name),
+	);
+	if (ruleError) {
+		return fail(ruleError);
+	}
+
+	// 创建
+	const tenant = TenantAggregate.create(props);
+	return ok(tenant);
 }
 
-// ❌ 错误
-interface Repository {
-	findOne(id: string): Promise<any>;
+// 使用
+const result = await tenantService.createTenant(props);
+if (result.isOk()) {
+	const tenant = result.value;
+	// 成功处理
+} else {
+	const error = result.value;
+	// 错误处理
 }
 ```
 
-### 注释和文档规范
+---
 
-#### TSDoc 注释
+## 注释和文档规范
+
+### TSDoc 注释
 
 公共 API、类、方法、接口、枚举**必须编写完整 TSDoc 注释**：
 
@@ -169,28 +709,10 @@ export class AuthService {
 	async login(credentials: LoginDto): Promise<LoginResponse> {
 		// 实现...
 	}
-
-	/**
-	 * 根据邮箱查找用户
-	 *
-	 * @param email - 用户邮箱地址
-	 * @returns 用户实体（如果找到），否则返回 null
-	 */
-	async findByEmail(email: string): Promise<User | null> {
-		return await this.userRepo.findOne({ email });
-	}
-}
-
-// ❌ 错误 - 缺少 TSDoc
-@Injectable()
-export class AuthService {
-	async login(credentials: LoginDto): Promise<LoginResponse> {
-		return await this.userRepo.findOne({ email: credentials.email });
-	}
 }
 ````
 
-#### TSDoc 标签说明
+### TSDoc 标签说明
 
 - `@param` - 参数说明（必须包含）
 - `@returns` - 返回值说明（必须包含）
@@ -198,7 +720,7 @@ export class AuthService {
 - `@example` - 使用示例（推荐添加）
 - `@see` - 相关文档链接（如有）
 
-#### 业务语义注释
+### 业务语义注释
 
 所有代码变量和业务逻辑必须配备中文注释说明：
 
@@ -221,55 +743,33 @@ async createTenant(data: CreateTenantDto): Promise<Tenant> {
 	await this.em.persistAndFlush(tenant);
 	return tenant;
 }
-
-// ❌ 错误 - 缺少中文注释
-async createTenant(data: CreateTenantDto): Promise<Tenant> {
-	const existing = await this.tenantRepo.findOne({ slug: data.slug });
-	if (existing) {
-		throw new BadRequestException('Tenant slug already exists');
-	}
-
-	const tenant = this.tenantRepo.create({ ...data });
-	await this.em.persistAndFlush(tenant);
-	return tenant;
-}
 ```
 
-### 命名规范
+---
 
-#### 文件
+## 命名规范
+
+### 文件
 
 - `kebab-case.ts` - 普通文件
 - `kebab-case.spec.ts` - 测试文件（与被测文件同目录）
 - `kebab-case.dto.ts` - DTO 文件
 - `kebab-case.entity.ts` - 实体文件
-- `kebab-case.service.ts` - 服务文件
-- `kebab-case.controller.ts` - 控制器文件
-- `kebab-case.module.ts` - 模块文件
+- `kebab-case.aggregate.ts` - 聚合根文件
+- `kebab-case.value-object.ts` - 值对象文件
+- `kebab-case.event.ts` - 领域事件文件
+- `kebab-case.rule.ts` - 业务规则文件
+- `kebab-case.port.ts` - 端口接口文件
+- `kebab-case.adapter.ts` - 适配器文件
+- `kebab-case.projection.ts` - 投影文件
 
-#### 类
+### 类
 
 - `PascalCase` - 用于类、接口、类型
 - `camelCase` - 用于函数、变量、属性
 - `UPPER_SNAKE_CASE` - 用于常量
 
-```typescript
-// ✅ 正确
-export class AuthService {
-	private readonly userRepo: EntityRepository<User>;
-	private static readonly MAX_RETRY_COUNT = 3;
-	async login(): Promise<LoginResponse> {}
-}
-
-// ❌ 错误
-export class authService {
-	private readonly userRepo: EntityRepository<User>;
-	private static readonly max_retry_count = 3;
-	async Login(): Promise<login_response> {}
-}
-```
-
-#### 包
+### 包
 
 - 使用 `@oksai/kebab-case` 表示包名
 - 包名必须小写
@@ -277,19 +777,40 @@ export class authService {
 ```typescript
 // ✅ 正确
 import { JwtPayload } from '@oksai/contracts';
-import { AuthService } from '@oksai/auth';
-import { TenantService } from '@oksai/tenant';
-
-// ❌ 错误
-import { JwtPayload } from '@oksai/Contracts';
-import { AuthService } from '@oksai/Auth';
+import { TenantAggregate } from '@oksai/tenant-domain';
+import { PostgreSQLDataSourceAdapter } from '@oksai/data-ingestion';
 ```
 
-### 错误处理
+---
 
-#### 使用 NestJS 异常
+## 错误处理
 
-始终使用 `@nestjs/common` 中的 NestJS 内置异常：
+### 领域异常
+
+使用领域异常封装业务规则违反：
+
+```typescript
+// ✅ 正确 - 领域异常
+export class DomainException extends Error {
+	constructor(
+		message: string,
+		public readonly code: string,
+		public readonly context?: Record<string, unknown>
+	) {
+		super(message);
+		this.name = 'DomainException';
+	}
+}
+
+// 使用
+if (this._status === DataSourceStatus.CONNECTING) {
+	throw new DomainException('数据源正在连接中', 'DATA_SOURCE_CONNECTING');
+}
+```
+
+### NestJS 异常
+
+在应用层和基础设施层使用 NestJS 内置异常：
 
 - `NotFoundException` - 404 Not Found
 - `BadRequestException` - 400 Bad Request
@@ -298,7 +819,7 @@ import { AuthService } from '@oksai/Auth';
 - `ConflictException` - 409 Conflict
 - `InternalServerErrorException` - 500 Internal Server Error
 
-#### 错误消息规范
+### 错误消息规范
 
 **重要**：错误消息**必须使用中文**，并遵循以下规范：
 
@@ -308,33 +829,14 @@ import { AuthService } from '@oksai/Auth';
 
 ```typescript
 // ✅ 正确 - 中文错误消息
-async findById(id: string): Promise<User> {
-	const user = await this.userRepo.findOne({ id });
-	if (!user) {
-		throw new NotFoundException(`未找到 ID 为 ${id} 的用户`);
-	}
-	return user;
-}
-
-async createByEmail(email: string): Promise<User> {
-	const existing = await this.userRepo.findOne({ email });
-	if (existing) {
-		throw new BadRequestException('此邮箱已被使用');
-	}
-	return this.userRepo.create({ email, ...data });
-}
-
-// ❌ 错误 - 英文错误消息
-async findById(id: string): Promise<User> {
-	const user = await this.userRepo.findOne({ id });
-	if (!user) {
-		throw new NotFoundException('User not found');
-	}
-	return user;
-}
+throw new NotFoundException(`未找到 ID 为 ${id} 的用户`);
+throw new BadRequestException('此邮箱已被使用');
+throw new DomainException('租户标识已存在', 'TENANT_SLUG_DUPLICATE');
 ```
 
-### 依赖注入
+---
+
+## 依赖注入
 
 使用构造函数注入并配合 `readonly` 修饰符：
 
@@ -348,280 +850,30 @@ export class AuthService {
 		private readonly jwtService: JwtService
 	) {}
 }
-
-// ❌ 错误
-@Injectable()
-export class AuthService {
-	constructor(
-		@InjectRepository(User)
-		private userRepo: EntityRepository<User>,
-		private jwtService: JwtService
-	) {}
-
-	// 或者更糟：属性注入
-	@InjectRepository(User)
-	private userRepo: EntityRepository<User>;
-}
 ```
 
-### 服务层模式
+---
 
-#### 仓储模式
+## 最佳实践
 
-使用 `@InjectRepository` 装饰器和 `EntityRepository` 类型：
-
-```typescript
-// ✅ 正确
-import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository } from '@mikro-orm/core';
-
-@Injectable()
-export class UserService {
-	constructor(
-		@InjectRepository(User)
-		private readonly userRepo: EntityRepository<User>
-	) {}
-}
-
-// ❌ 错误 - 手动注入
-@Injectable()
-export class UserService {
-	constructor(private em: EntityManager) {
-		this.userRepo = em.getRepository(User);
-	}
-}
-```
-
-#### EntityManager 访问
-
-使用私有 getter 访问 EntityManager：
-
-```typescript
-// ✅ 正确
-@Injectable()
-export class UserService {
-	constructor(
-		@InjectRepository(User)
-		private readonly userRepo: EntityRepository<User>
-	) {}
-
-	private get em(): EntityManager {
-		return this.userRepo.getEntityManager();
-	}
-
-	async create(data: CreateUserDto): Promise<User> {
-		const user = this.userRepo.create(data);
-		this.em.persist(user);
-		await this.em.flush();
-		return user;
-	}
-}
-
-// ❌ 错误
-async create(data: CreateUserDto): Promise<User> {
-	const user = this.userRepo.create(data);
-	await this.em.persistAndFlush(user);
-	return user;
-}
-```
-
-### 控制器层模式
-
-#### 装饰器顺序
-
-控制器装饰器应按此顺序排列：
-
-1.  `@Controller()`
-2.  `@Get()`, `@Post()`, `@Put()`, `@Patch()`, `@Delete()`
-3.  `@Body()`, `@Param()`, `@Query()`, `@Headers()`, `@Req()`
-4.  `@HttpCode()`, `@Header()`
-
-```typescript
-// ✅ 正确
-@Post('login')
-async login(@Body() credentials: LoginDto): Promise<LoginResponse> {
-	return this.authService.login(credentials);
-}
-
-@Post('register')
-@HttpCode(HttpStatus.CREATED)
-async register(@Body() credentials: RegisterDto): Promise<LoginResponse> {
-	return this.authService.register(credentials);
-}
-
-// ❌ 错误
-@Post('login')
-@Body()
-async login(credentials: LoginDto): Promise<LoginResponse> {
-	return this.authService.login(credentials);
-}
-```
-
-#### 响应格式
-
-始终返回类型化的响应：
-
-```typescript
-// ✅ 正确 - 使用接口
-export interface LoginResponse {
-	accessToken: string;
-	refreshToken: string;
-	user: User;
-}
-
-@Post('login')
-async login(@Body() credentials: LoginDto): Promise<LoginResponse> {
-	return this.authService.login(credentials);
-}
-
-// ❌ 错误 - 无类型
-@Post('login')
-async login(@Body() credentials: LoginDto) {
-	return this.authService.login(credentials);
-}
-```
-
-### 实体定义
-
-#### 实体结构
-
-```typescript
-// ✅ 正确
-import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
-import type { IBasePerTenantEntityModel } from '@oksai/contracts';
-
-@Entity({ tableName: 'users' })
-export class UserEntity implements IBasePerTenantEntityModel {
-	@PrimaryKey()
-	id: string = randomUUID();
-
-	@Property({ unique: true, nullable: false })
-	email!: string;
-
-	@Property({ nullable: true })
-	role?: UserRole;
-}
-
-// ❌ 错误 - 缺少装饰器
-export class User {
-	id: string;
-	email: string;
-	role: UserRole;
-}
-```
-
-#### 实体字段类型
-
-使用正确的 TypeScript 类型：
-
-- `string` - 用于文本
-- `number` - 用于数值
-- `boolean` - 用于标志
-- `Date` - 用于时间戳
-- `enum` - 用于枚举值
-
-```typescript
-// ✅ 正确
-@Property({ nullable: true })
-	createdAt?: Date;
-
-@Property({ nullable: true })
-	isActive?: boolean;
-
-// ❌ 错误
-@Property()
-	createdAt: Date;
-
-@Property()
-	isActive: boolean;
-```
-
-### 模块定义
-
-```typescript
-// ✅ 正确
-import { Module } from '@nestjs/common';
-import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { User } from './entities/user.entity';
-
-@Module({
-	imports: [MikroOrmModule.forFeature([User])],
-	providers: [AuthService],
-	controllers: [AuthController],
-	exports: [AuthService]
-})
-export class AuthModule {}
-
-// ❌ 错误 - 缺少 exports
-@Module({
-	imports: [MikroOrmModule.forFeature([User])],
-	providers: [AuthService],
-	controllers: [AuthController]
-})
-export class AuthModule {}
-```
-
-### 测试规范
-
-#### 测试文件位置
-
-- 单元测试与被测文件**同目录**，命名格式 `{filename}.spec.ts`
-- 集成测试放置在 `tests/integration/`
-- 端到端测试放置在 `tests/e2e/`
-
-#### 测试覆盖率要求
-
-- 核心业务逻辑测试覆盖率**须达到 80% 以上**
-- 关键路径测试覆盖率**须达到 90% 以上**
-- 所有公共 API **必须具备测试用例**
-
-#### 测试文件示例
-
-```typescript
-// ✅ 正确 - user.service.spec.ts 与 user.service.ts 同目录
-import { Test, TestingModule } from '@nestjs/testing';
-import { UserService } from './user.service';
-
-describe('UserService', () => {
-	let service: UserService;
-
-	beforeEach(async () => {
-		const module: TestingModule = await Test.createTestingModule({
-			providers: [UserService]
-		}).compile();
-
-		service = module.get<UserService>(UserService);
-	});
-
-	it('should be defined', () => {
-		expect(service).toBeDefined();
-	});
-
-	describe('create', () => {
-		it('should create user with valid data', async () => {
-			// 测试逻辑...
-		});
-	});
-});
-```
-
-### 最佳实践
-
-1.  **始终对数据库操作使用 async/await**
-2.  **使用 DTO 进行输入验证**（配合 class-validator）
-3.  **对多步骤操作使用事务**
-4.  **处理边界情况** - null 检查、空数组等
-5.  **绝不记录敏感数据** - 密码、令牌等
-6.  **使用环境变量进行配置**
-7.  **保持方法简洁专注** - 单一职责
-8.  **使用有意义的变量名** - 避免单字母（循环除外），并添加中文注释说明业务语义
-9.  **为公共 API 添加完整的 TSDoc 注释**
+1. **始终对数据库操作使用 async/await**
+2. **使用 DTO 进行输入验证**（配合 class-validator）
+3. **对多步骤操作使用事务**
+4. **处理边界情况** - null 检查、空数组等
+5. **绝不记录敏感数据** - 密码、令牌等
+6. **使用环境变量进行配置**
+7. **保持方法简洁专注** - 单一职责
+8. **使用有意义的变量名** - 避免单字母（循环除外），并添加中文注释说明业务语义
+9. **为公共 API 添加完整的 TSDoc 注释**
 10. **Git 提交信息使用英文描述**
 11. **核心业务逻辑测试覆盖率达到 80% 以上**
 12. **优先重用 `@oksai` 项目的代码，不要重复造轮子**
 13. **多租户安全**: tenantId 必须来自服务端上下文（CLS），禁止客户端透传覆盖
+14. **使用 Either 模式处理领域层错误**
+15. **跨模块协作优先使用 Outbox/Inbox 模式**
+16. **日志必须包含 tenantId、userId、requestId、eventId 等关键字段**
+
+---
 
 ## 重要提示
 
@@ -640,3 +892,15 @@ describe('UserService', () => {
 - tenantId 必须来自服务端上下文（CLS），禁止客户端透传覆盖
 - 跨模块协作优先使用 Outbox/Inbox 模式，确保至少一次投递 + 幂等消费
 - 日志必须包含 tenantId、userId、requestId、eventId 等关键字段，不记录敏感信息
+- 所有值对象使用 Either 模式返回创建结果
+- 所有业务规则封装为独立的 Rule 类
+- 所有领域事件包含完整的元数据
+- 集成事件支持版本控制，保持向后兼容
+
+---
+
+## 参考文档
+
+- [XS-基于ddd-hexagonal-cqrs-es-eda项目的重构方案.md](./docs/XS-基于ddd-hexagonal-cqrs-es-eda项目的重构方案.md)
+- [XS-SAAS平台架构设计方案（全局演进版）.md](./docs/XS-SAAS平台架构设计方案（全局演进版）.md)
+- [XS-模块系统与TypeScript配置策略.md](./.cursor/docs/XS-模块系统与TypeScript配置策略.md)
