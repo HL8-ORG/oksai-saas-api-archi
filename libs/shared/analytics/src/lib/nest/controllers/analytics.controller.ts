@@ -12,9 +12,9 @@ import {
 	BadRequestException
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { DataQualityScorerService } from '../services/data-quality-scorer.service';
-import { AnalyticsDimensionCalculatorService } from '../services/analytics-dimension-calculator.service';
-import { AnalyticsReportService } from '../services/analytics-report.service';
+import { DataQualityScorerService } from '../../services/data-quality-scorer.service';
+import { AnalyticsDimensionCalculatorService } from '../../services/analytics-dimension-calculator.service';
+import { AnalyticsReportService } from '../../services/analytics-report.service';
 import {
 	QualityScoreRequestDto,
 	QualityScoreResponseDto,
@@ -208,7 +208,7 @@ export class AnalyticsController {
 			const reportConfig = {
 				id: request.reportId,
 				name: request.reportName,
-				type: request.reportType as AnalyticsReportType,
+				type: request.reportType as unknown as AnalyticsReportType,
 				groupBy: request.groupBy,
 				filters: {
 					tenantId: request.tenantId,
@@ -249,7 +249,7 @@ export class AnalyticsController {
 	getReportTemplate(@Query() query: GetReportTemplateRequestDto) {
 		this.logger.log(`获取报表模板: ${query.reportType}`);
 
-		const template = this.reportService.getReportTemplate(query.reportType as AnalyticsReportType);
+		const template = this.reportService.getReportTemplate(query.reportType as unknown as AnalyticsReportType);
 
 		return {
 			template,

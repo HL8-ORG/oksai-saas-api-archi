@@ -51,7 +51,8 @@ export class QualityScorer implements IQualityScorer {
 				weight: 0.2,
 				evaluate: (metadata) => this.evaluateTimeliness(metadata)
 			},
-			name: '一致性',
+			{
+				name: '一致性',
 				weight: 0.2,
 				evaluate: (metadata) => this.evaluateConsistency(metadata)
 			},

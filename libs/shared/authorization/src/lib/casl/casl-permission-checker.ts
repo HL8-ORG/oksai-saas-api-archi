@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AbilityFactory } from '@oksai/authorization';
+import { AbilityFactory } from '../ability/ability.factory';
 import type { IPermissionChecker } from '@oksai/cqrs';
 
 /**
@@ -49,8 +49,8 @@ export class CaslPermissionChecker implements IPermissionChecker {
 
 		// 根据是否有 tenantId 确定资源类型
 		if (params.tenantId) {
-			// 租户级资源
-			return ability.can(action, { type: 'Tenant', tenantId: params.tenantId });
+			// 租户级资源（必须包含 tenantId）
+			return ability.can(action, { tenantId: params.tenantId } as any);
 		} else {
 			// 平台级资源
 			return ability.can(action, 'Platform');

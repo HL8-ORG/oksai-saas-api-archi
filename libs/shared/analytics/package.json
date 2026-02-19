@@ -2,17 +2,17 @@
   "name": "@oksai/analytics",
   "version": "1.0.0",
   "description": "数据分析能力包 - 提供数据质量评分、分析维度计算和报表生成功能",
-  "main": "./src/index.js",
-  "types": "./src/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.d.ts",
-      "import": "./src/index.js",
-      "require": "./src/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest",
     "lint": "eslint src/**/*.ts"
   },

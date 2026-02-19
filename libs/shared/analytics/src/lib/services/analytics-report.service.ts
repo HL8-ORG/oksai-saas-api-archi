@@ -373,7 +373,8 @@ export class AnalyticsReportService implements IAnalyticsReportService {
 				reportRows: result.rows as any[],
 				reportSummary: result.summary as any,
 				metadata: result.metadata,
-				generatedAt: result.generatedAt
+				generatedAt: result.generatedAt,
+				isDeleted: false
 			});
 
 			await em.persistAndFlush(reportEntity);

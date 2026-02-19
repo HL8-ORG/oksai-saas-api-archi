@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { DataQualityScorerService } from './services/data-quality-scorer.service';
-import { AnalyticsDimensionCalculatorService } from './services/analytics-dimension-calculator.service';
-import { AnalyticsReportService } from './services/analytics-report.service';
+import { DataQualityScorerService } from '../services/data-quality-scorer.service';
+import { AnalyticsDimensionCalculatorService } from '../services/analytics-dimension-calculator.service';
+import { AnalyticsReportService } from '../services/analytics-report.service';
 import { AnalyticsController } from './controllers/analytics.controller';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { AggregateMetadataEntity } from '@oksai/aggregate-metadata';

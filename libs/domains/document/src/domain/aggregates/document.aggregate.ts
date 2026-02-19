@@ -40,7 +40,7 @@ export enum DocumentStatus {
  */
 export class DocumentAggregate extends AIEnabledAggregateRoot<DocumentEvent> {
 	private readonly _id: DocumentId;
-	private readonly _tenantId: string;
+	private _tenantId: string;
 	private _title: DocumentTitle;
 	private _content: DocumentContent;
 	private _status: DocumentStatus;

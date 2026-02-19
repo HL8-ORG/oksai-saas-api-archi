@@ -268,18 +268,6 @@ describe('SyncableAggregateRoot', () => {
 				expect(aggregate.syncVersion).toBe(initialVersion + 1);
 			});
 
-			it('重复调用时版本应持续递增', () => {
-				// Arrange
-				const initialVersion = aggregate.syncVersion;
-
-				// Act
-				aggregate.markSyncRequired();
-				aggregate.markSyncRequired();
-
-				// Assert
-				expect(aggregate.syncVersion).toBe(initialVersion + 2);
-			});
-
 			it('状态已为PENDING时重复调用不应递增版本', () => {
 				// Arrange
 				aggregate.markSyncRequired();
@@ -289,7 +277,20 @@ describe('SyncableAggregateRoot', () => {
 				aggregate.markSyncRequired();
 
 				// Assert
-				expect(aggregate.syncVersion).toBe(versionAfterFirst + 1);
+				expect(aggregate.syncVersion).toBe(versionAfterFirst);
+			});
+
+			it('从SYNCED到PENDING再到SYNCED再到PENDING应递增版本', () => {
+				// Arrange
+				const initialVersion = aggregate.syncVersion;
+
+				// Act
+				aggregate.markSyncRequired(); // SYNCED -> PENDING, 版本+1
+				aggregate.markSynced(); // PENDING -> SYNCED
+				aggregate.markSyncRequired(); // SYNCED -> PENDING, 版本+1
+
+				// Assert
+				expect(aggregate.syncVersion).toBe(initialVersion + 2);
 			});
 
 			it('应标记为已更新', () => {
@@ -436,8 +437,9 @@ describe('SyncableAggregateRoot', () => {
 		describe('syncVersion getter', () => {
 			it('应返回当前同步版本', () => {
 				// Arrange
-				aggregate.markSyncRequired();
-				aggregate.markSyncRequired();
+				aggregate.markSyncRequired(); // 版本+1
+				aggregate.markSynced();
+				aggregate.markSyncRequired(); // 版本+1
 
 				// Act & Assert
 				expect(aggregate.syncVersion).toBe(3); // 初始1 + 2次递增

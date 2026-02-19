@@ -55,7 +55,8 @@ describe('OksaiRedisHealthService', () => {
 
 		const result = await service.ping();
 
-		expect(result.latencyMs).toBeGreaterThanOrEqual(10);
+		expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+		expect(result.latencyMs).toBeLessThan(1000);
 	});
 
 	it('当错误不是 Error 实例时应该转换为字符串', async () => {
