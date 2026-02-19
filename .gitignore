@@ -5,6 +5,12 @@
 /tmp
 /out-tsc
 .turbo
+**/*.js
+**/*.d.ts
+**/*.js.map
+**/*.d.ts.map
+!**/jest.config.js
+!**/babel.config.js
 
 guides
 references
