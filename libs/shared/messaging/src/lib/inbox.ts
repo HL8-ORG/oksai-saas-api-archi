@@ -19,4 +19,3 @@ export interface IInbox {
 	 */
 	markProcessed(messageId: string): Promise<void>;
 }
-

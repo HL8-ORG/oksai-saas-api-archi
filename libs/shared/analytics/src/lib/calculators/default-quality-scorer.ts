@@ -80,7 +80,9 @@ export class DefaultDataQualityScorer implements IDataQualityScorer {
 
 		// 严格模式：如果必填字段缺失，总分强制为 0
 		const finalScore =
-			this.config.strictMode && this.hasMissingRequiredFields(aggregate) ? 0 : Math.min(100, Math.max(0, totalScore));
+			this.config.strictMode && this.hasMissingRequiredFields(aggregate)
+				? 0
+				: Math.min(100, Math.max(0, totalScore));
 
 		return {
 			totalScore: finalScore,
@@ -221,7 +223,10 @@ export class DefaultDataQualityScorer implements IDataQualityScorer {
 			case '分析维度完整性':
 				if (!aggregate.analyzable) {
 					suggestions.push('启用 Analyzable 扩展能力');
-				} else if (!aggregate.analyzable.analyticsDimensions || Object.keys(aggregate.analyzable.analyticsDimensions).length === 0) {
+				} else if (
+					!aggregate.analyzable.analyticsDimensions ||
+					Object.keys(aggregate.analyzable.analyticsDimensions).length === 0
+				) {
 					suggestions.push('设置分析维度（如时间维度、业务维度等）');
 				}
 				break;

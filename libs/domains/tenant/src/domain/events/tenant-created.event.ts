@@ -20,4 +20,3 @@ export class TenantCreatedEvent implements DomainEvent<{ name: string }> {
 		this.eventData = { name };
 	}
 }
-

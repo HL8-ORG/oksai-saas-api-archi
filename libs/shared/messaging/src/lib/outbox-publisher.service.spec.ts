@@ -58,4 +58,3 @@ describe('OutboxPublisherService', () => {
 		expect(bus.publish).toHaveBeenCalledTimes(1);
 	});
 });
-

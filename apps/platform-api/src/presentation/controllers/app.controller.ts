@@ -31,4 +31,3 @@ export class AppController {
 		return { status: 'ok', uptime: process.uptime() };
 	}
 }
-

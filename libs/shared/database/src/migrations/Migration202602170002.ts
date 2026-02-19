@@ -23,4 +23,3 @@ export class Migration202602170002 extends Migration {
 		this.addSql(`create index if not exists idx_identity_roles_tenant on identity_role_assignments (tenant_id);`);
 	}
 }
-

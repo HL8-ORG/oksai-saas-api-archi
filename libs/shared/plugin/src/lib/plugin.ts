@@ -56,4 +56,3 @@ function pick<T extends object, K extends keyof T>(obj: T, keys: readonly K[]): 
 	}
 	return out;
 }
-

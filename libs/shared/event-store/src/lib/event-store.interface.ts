@@ -75,4 +75,3 @@ export interface IEventStore {
 	 */
 	loadStream(params: LoadStreamParams): Promise<{ currentVersion: number; events: StoredEvent[] }>;
 }
-

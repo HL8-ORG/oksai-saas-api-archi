@@ -59,4 +59,3 @@ export class OutboxRecordEntity {
 	@Property({ fieldName: 'updated_at', nullable: false })
 	updatedAt: Date = new Date();
 }
-

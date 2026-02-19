@@ -36,4 +36,3 @@ bootstrap().catch((error) => {
 	console.error('应用启动失败：', error);
 	process.exit(1);
 });
-

@@ -17,4 +17,3 @@ export interface ITenantReadModel {
  * @description 租户读模型注入 Token
  */
 export const OKSAI_TENANT_READ_MODEL_TOKEN = Symbol.for('oksai:tenant:readModel');
-

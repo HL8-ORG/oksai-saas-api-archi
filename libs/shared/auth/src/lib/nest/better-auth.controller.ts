@@ -148,4 +148,3 @@ export class BetterAuthController {
 		await this.outbox.append(envelope);
 	}
 }
-

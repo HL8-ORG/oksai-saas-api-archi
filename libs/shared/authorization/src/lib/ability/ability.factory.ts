@@ -54,4 +54,3 @@ export class AbilityFactory {
 		return builder.build();
 	}
 }
-

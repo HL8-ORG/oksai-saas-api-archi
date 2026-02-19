@@ -169,7 +169,10 @@ export class AnalyticsReportService implements IAnalyticsReportService {
 		const conn = this.orm.em.getConnection();
 
 		// 构建 SQL 查询
-		const selectFields = [...config.groupBy, ...config.aggregations.map((a) => `${a.function}(${a.field}) AS ${a.alias}`)];
+		const selectFields = [
+			...config.groupBy,
+			...config.aggregations.map((a) => `${a.function}(${a.field}) AS ${a.alias}`)
+		];
 
 		const whereConditions = this.buildWhereConditions(config.filters);
 		const groupByClause = config.groupBy.join(', ');
@@ -212,7 +215,10 @@ export class AnalyticsReportService implements IAnalyticsReportService {
 		const whereConditions = this.buildWhereConditions(config.filters);
 		const timeCondition = `created_at >= '${config.timeRange.start.toISOString()}' AND created_at <= '${config.timeRange.end.toISOString()}'`;
 
-		const selectFields = [...config.groupBy, ...config.aggregations.map((a) => `${a.function}(${a.field}) AS ${a.alias}`)];
+		const selectFields = [
+			...config.groupBy,
+			...config.aggregations.map((a) => `${a.function}(${a.field}) AS ${a.alias}`)
+		];
 
 		const sql = `
 			SELECT ${selectFields.join(', ')}
@@ -262,7 +268,10 @@ export class AnalyticsReportService implements IAnalyticsReportService {
 			if (score < 60) qualityStats.lowQualityCount += row.metrics.count;
 		}
 
-		const totalRecords = result.rows.reduce((sum, row) => sum + (row.metrics.count || row.metrics.total_count || 0), 0);
+		const totalRecords = result.rows.reduce(
+			(sum, row) => sum + (row.metrics.count || row.metrics.total_count || 0),
+			0
+		);
 		qualityStats.averageScore = totalRecords > 0 ? totalScore / totalRecords : 0;
 
 		result.summary = {

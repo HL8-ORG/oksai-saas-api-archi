@@ -41,4 +41,3 @@ export class QueryBus {
 		return (await handler.execute(query as any)) as TResult;
 	}
 }
-

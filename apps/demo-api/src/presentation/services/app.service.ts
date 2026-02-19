@@ -21,7 +21,7 @@ export class AppService {
 		this.logger.debug('获取应用状态');
 		return {
 			status: 'running',
-			version: '0.1.0',
+			version: '0.1.0'
 		};
 	}
 
@@ -33,7 +33,7 @@ export class AppService {
 		return {
 			nodeEnv,
 			logLevel,
-			port,
+			port
 		};
 	}
 }

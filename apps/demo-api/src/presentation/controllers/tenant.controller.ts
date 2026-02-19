@@ -24,4 +24,3 @@ export class TenantController {
 		return await this.tenantApp.createTenant({ name: body.name, maxMembers: body.maxMembers });
 	}
 }
-

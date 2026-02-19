@@ -1,4 +1,11 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+	CanActivate,
+	ExecutionContext,
+	ForbiddenException,
+	Inject,
+	Injectable,
+	UnauthorizedException
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { PolicyContext, PolicyHandler } from '../decorators/check-policies.decorator';
 import { OKSAI_CHECK_POLICIES_KEY } from '../decorators/check-policies.decorator';
@@ -19,8 +26,10 @@ export class PoliciesGuard implements CanActivate {
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
 		const handlers =
-			this.reflector.getAllAndOverride<PolicyHandler[]>(OKSAI_CHECK_POLICIES_KEY, [context.getHandler(), context.getClass()]) ??
-			[];
+			this.reflector.getAllAndOverride<PolicyHandler[]>(OKSAI_CHECK_POLICIES_KEY, [
+				context.getHandler(),
+				context.getClass()
+			]) ?? [];
 
 		// 未声明策略：默认放行（由应用侧决定哪些 controller 必须加策略）
 		if (handlers.length === 0) return true;
@@ -50,4 +59,3 @@ export class PoliciesGuard implements CanActivate {
 		return true;
 	}
 }
-

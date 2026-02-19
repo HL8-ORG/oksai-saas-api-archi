@@ -66,7 +66,12 @@ export class InMemoryOutbox implements IOutbox {
 		record.updatedAt = new Date();
 	}
 
-	async markFailed(params: { messageId: string; attempts: number; nextAttemptAt: Date; lastError?: string }): Promise<void> {
+	async markFailed(params: {
+		messageId: string;
+		attempts: number;
+		nextAttemptAt: Date;
+		lastError?: string;
+	}): Promise<void> {
 		const record = this.records.get(params.messageId);
 		if (!record) return;
 		record.attempts = params.attempts;
@@ -85,4 +90,3 @@ export class InMemoryOutbox implements IOutbox {
 		return { ...r };
 	}
 }
-

@@ -16,7 +16,8 @@ export class InMemoryEventBus implements IEventBus {
 
 	async publish<TEvent extends object>(event: TEvent): Promise<void> {
 		const anyEvent = event as { eventType?: unknown } | null | undefined;
-		const eventType = typeof anyEvent?.eventType === 'string' ? anyEvent.eventType : event.constructor?.name ?? 'UnknownEvent';
+		const eventType =
+			typeof anyEvent?.eventType === 'string' ? anyEvent.eventType : (event.constructor?.name ?? 'UnknownEvent');
 		const set = this.handlers.get(eventType);
 		if (!set || set.size === 0) return;
 
@@ -24,7 +25,10 @@ export class InMemoryEventBus implements IEventBus {
 		await Promise.allSettled(Array.from(set).map((h) => h(event)));
 	}
 
-	async subscribe<TEvent extends object>(eventType: string, handler: (event: TEvent) => Promise<void>): Promise<Disposable> {
+	async subscribe<TEvent extends object>(
+		eventType: string,
+		handler: (event: TEvent) => Promise<void>
+	): Promise<Disposable> {
 		const set = this.handlers.get(eventType) ?? new Set();
 		set.add(handler as unknown as (event: unknown) => Promise<void>);
 		this.handlers.set(eventType, set);
@@ -40,4 +44,3 @@ export class InMemoryEventBus implements IEventBus {
 		};
 	}
 }
-

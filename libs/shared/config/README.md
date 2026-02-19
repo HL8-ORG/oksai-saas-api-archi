@@ -27,12 +27,12 @@ const cacheTtl = env.durationMs('CACHE_TTL', { defaultValue: 300_000 });
 import { setupConfigModule } from '@oksai/config';
 
 @Module({
-  imports: [
-    setupConfigModule({
-      isGlobal: true,
-      envFilePath: ['.env', '.env.local'],
-    }),
-  ],
+	imports: [
+		setupConfigModule({
+			isGlobal: true,
+			envFilePath: ['.env', '.env.local']
+		})
+	]
 })
 export class AppModule {}
 ```
@@ -43,7 +43,7 @@ export class AppModule {}
 import { registerAppConfig } from '@oksai/config';
 
 export const appConfig = registerAppConfig('app', () => ({
-  port: env.int('PORT', { defaultValue: 3000 }),
-  nodeEnv: env.string('NODE_ENV', { defaultValue: 'development' }),
+	port: env.int('PORT', { defaultValue: 3000 }),
+	nodeEnv: env.string('NODE_ENV', { defaultValue: 'development' })
 }));
 ```

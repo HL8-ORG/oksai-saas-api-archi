@@ -65,7 +65,7 @@ describe('fromNodeHeaders', () => {
 		it('应跳过 undefined 值', () => {
 			const headers = fromNodeHeaders({
 				'content-type': 'application/json',
-				'authorization': undefined
+				authorization: undefined
 			});
 
 			expect(headers.get('content-type')).toBe('application/json');
@@ -75,7 +75,7 @@ describe('fromNodeHeaders', () => {
 		it('应跳过 null 值', () => {
 			const headers = fromNodeHeaders({
 				'content-type': 'application/json',
-				'authorization': null
+				authorization: null
 			});
 
 			expect(headers.get('content-type')).toBe('application/json');
@@ -122,7 +122,8 @@ describe('fromNodeHeaders', () => {
 
 		it('应处理包含特殊字符的 header 值', () => {
 			const headers = fromNodeHeaders({
-				authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U'
+				authorization:
+					'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U'
 			});
 
 			expect(headers.get('authorization')).toBe(
@@ -144,8 +145,8 @@ describe('fromNodeHeaders', () => {
 		it('应正确处理多个不同的 header', () => {
 			const headers = fromNodeHeaders({
 				'content-type': 'application/json',
-				'accept': 'application/json',
-				'authorization': 'Bearer token123',
+				accept: 'application/json',
+				authorization: 'Bearer token123',
 				'user-agent': 'TestAgent/1.0'
 			});
 

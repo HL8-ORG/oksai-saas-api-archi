@@ -38,4 +38,3 @@ export class ContextAwareEventBus implements IEventBus {
 		return await this.inner.subscribe(eventType, handler);
 	}
 }
-

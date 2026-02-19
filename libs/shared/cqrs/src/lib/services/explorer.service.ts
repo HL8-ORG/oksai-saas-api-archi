@@ -55,4 +55,3 @@ export class ExplorerService implements OnApplicationBootstrap {
 		this.logger.log('CQRS Handler 探测与注册完成。');
 	}
 }
-

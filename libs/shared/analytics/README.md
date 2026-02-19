@@ -25,6 +25,7 @@ console.log(`数据质量分数: ${result.totalScore}`);
 ```
 
 **评分维度：**
+
 - 基础完整性（30%）：必填字段完整性
 - 分类准确性（20%）：标签和分类设置
 - 分析维度完整性（25%）：分析维度设置
@@ -54,6 +55,7 @@ console.log(dimensions);
 ```
 
 **支持的计算器：**
+
 - `TimeDimensionCalculator`：时间维度（年、月、周、日、小时、季度）
 - `BusinessDimensionCalculator`：业务维度（类型、状态、金额范围、货币）
 
@@ -67,21 +69,22 @@ import { AnalyticsReportService, AnalyticsReportType } from '@oksai/analytics';
 const reportService = new AnalyticsReportService(orm);
 
 const report = await reportService.generateReport({
-  id: 'billing-summary-2026',
-  name: '账单汇总报表',
-  type: AnalyticsReportType.SUMMARY,
-  groupBy: ['business_type', 'business_status'],
-  filters: { tenantId: 'tenant-123' },
-  aggregations: [
-    { function: 'COUNT', field: '*', alias: 'total_count' },
-    { function: 'SUM', field: 'amount', alias: 'total_amount' }
-  ]
+	id: 'billing-summary-2026',
+	name: '账单汇总报表',
+	type: AnalyticsReportType.SUMMARY,
+	groupBy: ['business_type', 'business_status'],
+	filters: { tenantId: 'tenant-123' },
+	aggregations: [
+		{ function: 'COUNT', field: '*', alias: 'total_count' },
+		{ function: 'SUM', field: 'amount', alias: 'total_amount' }
+	]
 });
 
 console.log(`报表生成完成，共 ${report.rows.length} 行数据`);
 ```
 
 **支持的报表类型：**
+
 - `SUMMARY`：汇总报表（按维度聚合统计）
 - `TREND`：趋势报表（时间序列分析）
 - `QUALITY`：质量报表（数据质量统计）
@@ -95,13 +98,13 @@ console.log(`报表生成完成，共 ${report.rows.length} 行数据`);
 import { AnalyticsModule } from '@oksai/analytics';
 
 @Module({
-  imports: [
-    AnalyticsModule.forRoot({
-      enableQualityScoring: true,
-      enableDimensionCalculation: true,
-      enableReportGeneration: true
-    })
-  ]
+	imports: [
+		AnalyticsModule.forRoot({
+			enableQualityScoring: true,
+			enableDimensionCalculation: true,
+			enableReportGeneration: true
+		})
+	]
 })
 export class AppModule {}
 ```
@@ -114,12 +117,12 @@ import { DataQualityScorerService } from '@oksai/analytics';
 
 @Injectable()
 export class BillingService {
-  constructor(private readonly qualityScorer: DataQualityScorerService) {}
+	constructor(private readonly qualityScorer: DataQualityScorerService) {}
 
-  async assessBillingQuality(billingId: string) {
-    const result = await this.qualityScorer.score(billingMetadata);
-    return result;
-  }
+	async assessBillingQuality(billingId: string) {
+		const result = await this.qualityScorer.score(billingMetadata);
+		return result;
+	}
 }
 ```
 
@@ -215,20 +218,20 @@ GET /analytics/info
 
 ```typescript
 export class BillingAggregate extends AnalyzableAggregateRoot<BillingEvent> {
-  static create(id: BillingId, tenantId: string, amount: Money): BillingAggregate {
-    const billing = new BillingAggregate(id, tenantId, amount);
+	static create(id: BillingId, tenantId: string, amount: Money): BillingAggregate {
+		const billing = new BillingAggregate(id, tenantId, amount);
 
-    // 自动设置分析维度
-    billing.setAnalyticsDimension('currency', amount.getCurrency());
-    billing.setAnalyticsDimension('amount', amount.getAmount());
+		// 自动设置分析维度
+		billing.setAnalyticsDimension('currency', amount.getCurrency());
+		billing.setAnalyticsDimension('amount', amount.getAmount());
 
-    // 根据金额自动添加标签
-    if (amount.getAmount() >= 1000) {
-      billing.addTag('high-value');
-    }
+		// 根据金额自动添加标签
+		if (amount.getAmount() >= 1000) {
+			billing.addTag('high-value');
+		}
 
-    return billing;
-  }
+		return billing;
+	}
 }
 ```
 

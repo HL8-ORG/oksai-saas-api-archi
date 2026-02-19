@@ -32,7 +32,7 @@ export class OpenAIEmbeddingService implements IEmbeddingService {
 				timeout: this.config.timeout
 			});
 			this.logger.log(`OpenAI client initialized with model: ${this.config.modelName}`);
-		} catch (error) {
+		} catch (_error) {
 			this.logger.warn('OpenAI package not installed. Embedding service will not work.');
 			this.logger.warn('Install with: pnpm add openai');
 		}

@@ -10,24 +10,24 @@
 
 ### 1.1 核心目的
 
-| 目的 | 说明 |
-|------|------|
-| **消除重复代码** | 将事件版本管理、领域事件管理、审计时间戳等通用逻辑抽取到基类 |
-| **统一聚合根模式** | 为所有领域聚合根提供一致的行为契约和实现模式 |
-| **降低维护成本** | 修改事件管理逻辑只需改一处，自动影响所有聚合根 |
-| **加速开发效率** | 新领域聚合根只需继承基类，专注业务逻辑实现 |
-| **增强审计追踪** | 内置创建者、更新者追踪，满足企业级审计合规要求 |
+| 目的               | 说明                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| **消除重复代码**   | 将事件版本管理、领域事件管理、审计时间戳等通用逻辑抽取到基类 |
+| **统一聚合根模式** | 为所有领域聚合根提供一致的行为契约和实现模式                 |
+| **降低维护成本**   | 修改事件管理逻辑只需改一处，自动影响所有聚合根               |
+| **加速开发效率**   | 新领域聚合根只需继承基类，专注业务逻辑实现                   |
+| **增强审计追踪**   | 内置创建者、更新者追踪，满足企业级审计合规要求               |
 
 ### 1.2 量化收益
 
-| 指标 | 当前状态 | 改进后 | 收益 |
-|------|----------|--------|------|
-| 重复代码行数 | ~240 行（4 聚合根 × 60 行） | 0 行 | **减少 240 行** |
-| 新聚合根开发 | 需复制 60+ 行样板代码 | 继承基类即可 | **节省 50% 开发时间** |
-| 事件管理逻辑修改 | 需修改 4 处 | 只需修改 1 处 | **维护效率提升 75%** |
-| Bug 修复影响范围 | 每个聚合根独立修复 | 一处修复全局生效 | **降低遗漏风险** |
-| 软删除能力 | 每个聚合根独立实现 | 基类内置 | **统一数据安全策略** |
-| 审计追踪能力 | 无或分散实现 | 基类内置 | **满足合规审计要求** |
+| 指标             | 当前状态                    | 改进后           | 收益                  |
+| ---------------- | --------------------------- | ---------------- | --------------------- |
+| 重复代码行数     | ~240 行（4 聚合根 × 60 行） | 0 行             | **减少 240 行**       |
+| 新聚合根开发     | 需复制 60+ 行样板代码       | 继承基类即可     | **节省 50% 开发时间** |
+| 事件管理逻辑修改 | 需修改 4 处                 | 只需修改 1 处    | **维护效率提升 75%**  |
+| Bug 修复影响范围 | 每个聚合根独立修复          | 一处修复全局生效 | **降低遗漏风险**      |
+| 软删除能力       | 每个聚合根独立实现          | 基类内置         | **统一数据安全策略**  |
+| 审计追踪能力     | 无或分散实现                | 基类内置         | **满足合规审计要求**  |
 
 ### 1.3 质量收益
 
@@ -54,12 +54,12 @@
 
 当前项目中存在多个聚合根（Aggregate Root）实现：
 
-| 聚合根 | 位置 | 代码行数 |
-|--------|------|----------|
-| `BillingAggregate` | `libs/domains/billing/src/domain/aggregates/` | ~479 行 |
-| `TenantAggregate` | `libs/domains/tenant/src/domain/aggregates/` | ~302 行 |
-| `UserAggregate` | `libs/domains/identity/src/domain/aggregates/` | ~409 行 |
-| `TenantMembershipAggregate` | `libs/domains/identity/src/domain/aggregates/` | 待统计 |
+| 聚合根                      | 位置                                           | 代码行数 |
+| --------------------------- | ---------------------------------------------- | -------- |
+| `BillingAggregate`          | `libs/domains/billing/src/domain/aggregates/`  | ~479 行  |
+| `TenantAggregate`           | `libs/domains/tenant/src/domain/aggregates/`   | ~302 行  |
+| `UserAggregate`             | `libs/domains/identity/src/domain/aggregates/` | ~409 行  |
+| `TenantMembershipAggregate` | `libs/domains/identity/src/domain/aggregates/` | 待统计   |
 
 ### 2.2 重复代码分析
 
@@ -546,7 +546,13 @@ export class BillingAggregate extends AggregateRoot<BillingEvent> {
 			eventType: 'BillingCreated',
 			aggregateId: id.toString(),
 			occurredAt: now,
-			eventData: { tenantId, amount: amount.getAmount(), currency: amount.getCurrency(), billingType, description },
+			eventData: {
+				tenantId,
+				amount: amount.getAmount(),
+				currency: amount.getCurrency(),
+				billingType,
+				description
+			},
 			schemaVersion: 1
 		});
 
@@ -594,9 +600,15 @@ export class BillingAggregate extends AggregateRoot<BillingEvent> {
 
 	// ==================== 业务属性 Getter ====================
 
-	get id(): BillingId { return this._id; }
-	get tenantId(): string { return this._tenantId; }
-	get amount(): Money { return this._amount; }
+	get id(): BillingId {
+		return this._id;
+	}
+	get tenantId(): string {
+		return this._tenantId;
+	}
+	get amount(): Money {
+		return this._amount;
+	}
 	// ... 其他 getter ...
 }
 ```
@@ -619,12 +631,12 @@ export class BillingAggregate extends AggregateRoot<BillingEvent> {
 
 ### 4.3 步骤三：改造各聚合根
 
-| 优先级 | 聚合根 | 预计减少代码行数 |
-|--------|--------|------------------|
-| 1 | `BillingAggregate` | ~60 行 |
-| 2 | `TenantAggregate` | ~60 行 |
-| 3 | `UserAggregate` | ~60 行 |
-| 4 | `TenantMembershipAggregate` | ~60 行 |
+| 优先级 | 聚合根                      | 预计减少代码行数 |
+| ------ | --------------------------- | ---------------- |
+| 1      | `BillingAggregate`          | ~60 行           |
+| 2      | `TenantAggregate`           | ~60 行           |
+| 3      | `UserAggregate`             | ~60 行           |
+| 4      | `TenantMembershipAggregate` | ~60 行           |
 
 ### 4.4 步骤四：验证与测试
 
@@ -638,21 +650,21 @@ export class BillingAggregate extends AggregateRoot<BillingEvent> {
 
 ### 5.1 正面影响
 
-| 维度 | 说明 |
-|------|------|
+| 维度       | 说明                           |
+| ---------- | ------------------------------ |
 | 代码量减少 | 每个聚合根减少约 60 行重复代码 |
-| 可维护性 | 事件管理逻辑集中维护 |
-| 一致性 | 所有聚合根行为统一 |
-| 可扩展性 | 新聚合根只需继承基类 |
-| 审计合规 | 满足 SOX、GDPR 等合规要求 |
+| 可维护性   | 事件管理逻辑集中维护           |
+| 一致性     | 所有聚合根行为统一             |
+| 可扩展性   | 新聚合根只需继承基类           |
+| 审计合规   | 满足 SOX、GDPR 等合规要求      |
 
 ### 5.2 风险评估
 
-| 风险 | 等级 | 缓解措施 |
-|------|------|----------|
-| 破坏现有功能 | 低 | 保持接口兼容，getter 方法名不变 |
-| 类型安全 | 低 | 使用泛型支持不同事件类型 |
-| 性能影响 | 无 | 无运行时开销 |
+| 风险         | 等级 | 缓解措施                        |
+| ------------ | ---- | ------------------------------- |
+| 破坏现有功能 | 低   | 保持接口兼容，getter 方法名不变 |
+| 类型安全     | 低   | 使用泛型支持不同事件类型        |
+| 性能影响     | 无   | 无运行时开销                    |
 
 ### 5.3 兼容性
 
@@ -677,12 +689,12 @@ export class BillingAggregate extends AggregateRoot<BillingEvent> {
 
 软删除适用于以下场景：
 
-| 场景 | 说明 |
-|------|------|
+| 场景     | 说明                             |
+| -------- | -------------------------------- |
 | 用户误删 | 支持用户在一定时间内恢复误删数据 |
-| 审计合规 | 保留删除记录满足审计和合规要求 |
-| 数据分析 | 保留历史数据用于数据分析和统计 |
-| 关联保护 | 防止级联删除导致数据丢失 |
+| 审计合规 | 保留删除记录满足审计和合规要求   |
+| 数据分析 | 保留历史数据用于数据分析和统计   |
+| 关联保护 | 防止级联删除导致数据丢失         |
 
 #### 6.2.2 使用示例
 
@@ -732,12 +744,12 @@ async findById(id: string, includeDeleted = false): Promise<BillingAggregate | n
 
 #### 6.3.1 审计信息记录时机
 
-| 操作 | 记录时机 | 记录字段 |
-|------|----------|----------|
-| 创建 | `create()` 工厂方法 | `createdBy`, `createdAt` |
-| 更新 | 业务方法中 | `updatedBy`, `updatedAt` |
-| 删除 | `softDelete()` | `deletedBy`, `deletedAt` |
-| 恢复 | `restore()` | `updatedBy`, `updatedAt`, 清空 `deletedBy/At` |
+| 操作 | 记录时机            | 记录字段                                      |
+| ---- | ------------------- | --------------------------------------------- |
+| 创建 | `create()` 工厂方法 | `createdBy`, `createdAt`                      |
+| 更新 | 业务方法中          | `updatedBy`, `updatedAt`                      |
+| 删除 | `softDelete()`      | `deletedBy`, `deletedAt`                      |
+| 恢复 | `restore()`         | `updatedBy`, `updatedAt`, 清空 `deletedBy/At` |
 
 #### 6.3.2 审计日志集成
 
@@ -762,12 +774,12 @@ this.addDomainEvent({
 
 #### 6.3.3 合规性检查清单
 
-| 合规要求 | 实现方式 |
-|----------|----------|
+| 合规要求   | 实现方式                                        |
+| ---------- | ----------------------------------------------- |
 | 数据可追溯 | 通过 `createdBy/updatedBy/deletedBy` 追踪操作者 |
-| 变更历史 | 通过事件溯源重建完整变更历史 |
-| 删除保护 | 软删除 + 定期物理清理策略 |
-| 访问控制 | 应用层校验用户权限，记录操作者 |
+| 变更历史   | 通过事件溯源重建完整变更历史                    |
+| 删除保护   | 软删除 + 定期物理清理策略                       |
+| 访问控制   | 应用层校验用户权限，记录操作者                  |
 
 ---
 
@@ -775,21 +787,21 @@ this.addDomainEvent({
 
 ### 7.1 SAAS 平台未来发展目标
 
-| 发展方向 | 核心需求 | 架构影响 |
-|----------|----------|----------|
-| **AI 嵌入** | 向量嵌入、AI 处理状态、模型版本追踪 | 需要元数据扩展能力 |
-| **数据分析** | 数据分类、分析维度、数据质量标记 | 需要标签和分类系统 |
+| 发展方向       | 核心需求                             | 架构影响                 |
+| -------------- | ------------------------------------ | ------------------------ |
+| **AI 嵌入**    | 向量嵌入、AI 处理状态、模型版本追踪  | 需要元数据扩展能力       |
+| **数据分析**   | 数据分类、分析维度、数据质量标记     | 需要标签和分类系统       |
 | **数据仓接入** | 外部系统标识、同步状态、数据来源追踪 | 需要外部引用和同步元数据 |
 
 ### 7.2 架构决策：是否在基类中预置？
 
 #### 7.2.1 分析
 
-| 方案 | 优点 | 缺点 |
-|------|------|------|
-| **方案 A：基类预置所有能力** | 统一性强，开箱即用 | 基类臃肿，YAGNI 违反，性能开销 |
-| **方案 B：基类保持精简** | 灵活轻量，职责单一 | 需要时再扩展，可能不一致 |
-| **方案 C：分层基类 + 混入模式** | 平衡灵活性与统一性 | 复杂度增加 |
+| 方案                            | 优点               | 缺点                           |
+| ------------------------------- | ------------------ | ------------------------------ |
+| **方案 A：基类预置所有能力**    | 统一性强，开箱即用 | 基类臃肿，YAGNI 违反，性能开销 |
+| **方案 B：基类保持精简**        | 灵活轻量，职责单一 | 需要时再扩展，可能不一致       |
+| **方案 C：分层基类 + 混入模式** | 平衡灵活性与统一性 | 复杂度增加                     |
 
 #### 7.2.2 推荐方案：分层基类 + 扩展点
 
@@ -875,8 +887,7 @@ export abstract class AIEnabledAggregateRoot<
 	 * @description 检查是否需要重新嵌入
 	 */
 	needsReembedding(): boolean {
-		return this._embeddingStatus === EmbeddingStatus.STALE || 
-			   this._embeddingStatus === EmbeddingStatus.PENDING;
+		return this._embeddingStatus === EmbeddingStatus.STALE || this._embeddingStatus === EmbeddingStatus.PENDING;
 	}
 
 	// ==================== AI 元数据 Getter ====================
@@ -1183,13 +1194,13 @@ export interface ETLMetadata {
 
 #### 7.4.1 选择合适的基类
 
-| 聚合根类型 | 推荐基类 | 理由 |
-|------------|----------|------|
-| 文档、知识库 | `AIEnabledAggregateRoot` | 需要向量检索 |
-| 账单、订单 | `AnalyzableAggregateRoot` | 需要统计分析 |
-| 第三方集成数据 | `SyncableAggregateRoot` | 需要外部同步 |
-| 普通业务实体 | `AggregateRoot` | 无特殊需求 |
-| 复杂场景 | 组合使用 Trait | 多种能力组合 |
+| 聚合根类型     | 推荐基类                  | 理由         |
+| -------------- | ------------------------- | ------------ |
+| 文档、知识库   | `AIEnabledAggregateRoot`  | 需要向量检索 |
+| 账单、订单     | `AnalyzableAggregateRoot` | 需要统计分析 |
+| 第三方集成数据 | `SyncableAggregateRoot`   | 需要外部同步 |
+| 普通业务实体   | `AggregateRoot`           | 无特殊需求   |
+| 复杂场景       | 组合使用 Trait            | 多种能力组合 |
 
 #### 7.4.2 实施路径
 

@@ -17,4 +17,3 @@ export class TenantReadModelEntity {
 	@Property({ fieldName: 'updated_at', nullable: false })
 	updatedAt: Date = new Date();
 }
-

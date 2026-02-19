@@ -48,4 +48,3 @@ export type AppAbility = MongoAbility<AppAbilityTuple>;
  * @description AbilityBuilder 的类型别名（便于在 factory 内构建规则）
  */
 export type AppAbilityBuilder = AbilityBuilder<AppAbility>;
-

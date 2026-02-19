@@ -1,5 +1,4 @@
-import { DynamicModule } from '@nestjs/common';
-import { setupLoggerModule, SetupLoggerModuleOptions } from './setup-logger-module';
+import { setupLoggerModule } from './setup-logger-module';
 
 jest.mock('nestjs-pino', () => ({
 	LoggerModule: {

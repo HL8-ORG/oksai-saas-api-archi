@@ -18,22 +18,22 @@ import { Module } from '@nestjs/common';
 import { setupLoggerModule } from '@oksai/logger';
 
 @Module({
-  imports: [
-    setupLoggerModule({
-      level: 'info',
-      pretty: process.env.NODE_ENV === 'development',
-      prettyOptions: {
-        colorize: true,
-        timeFormat: 'HH:MM:ss.l',
-        singleLine: false,
-        errorLikeObjectKeys: ['err', 'error'],
-        ignore: 'pid,hostname'
-      },
-      customProps: (req) => ({
-        requestId: (req as any)?.id
-      })
-    })
-  ]
+	imports: [
+		setupLoggerModule({
+			level: 'info',
+			pretty: process.env.NODE_ENV === 'development',
+			prettyOptions: {
+				colorize: true,
+				timeFormat: 'HH:MM:ss.l',
+				singleLine: false,
+				errorLikeObjectKeys: ['err', 'error'],
+				ignore: 'pid,hostname'
+			},
+			customProps: (req) => ({
+				requestId: (req as any)?.id
+			})
+		})
+	]
 })
 export class AppModule {}
 ```
@@ -69,12 +69,12 @@ app.useLogger(app.get(Logger));
 
 ```json
 {
-  "level": "info",
-  "time": 1708092180000,
-  "requestId": "abc123",
-  "req": { "method": "GET", "url": "/" },
-  "res": { "statusCode": 200 },
-  "responseTime": 123
+	"level": "info",
+	"time": 1708092180000,
+	"requestId": "abc123",
+	"req": { "method": "GET", "url": "/" },
+	"res": { "statusCode": 200 },
+	"responseTime": 123
 }
 ```
 
@@ -91,4 +91,3 @@ app.useLogger(app.get(Logger));
   }
   responseTime: 123ms
 ```
-

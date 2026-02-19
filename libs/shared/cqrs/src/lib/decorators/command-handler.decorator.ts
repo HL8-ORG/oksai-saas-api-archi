@@ -13,4 +13,3 @@ import { OKSAI_COMMAND_HANDLER_METADATA } from './metadata.constants';
 export function CommandHandler(commandType: string): ClassDecorator {
 	return SetMetadata(OKSAI_COMMAND_HANDLER_METADATA, commandType);
 }
-

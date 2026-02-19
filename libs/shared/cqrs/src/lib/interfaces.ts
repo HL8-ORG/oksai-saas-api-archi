@@ -55,4 +55,3 @@ export interface IQueryHandler<TQuery extends IQuery = IQuery, TResult = unknown
 	 */
 	execute(query: TQuery): Promise<TResult>;
 }
-

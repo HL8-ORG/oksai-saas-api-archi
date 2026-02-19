@@ -18,7 +18,9 @@ export class ContextAwareOutbox implements IOutbox {
 		const ctxTenantId = ctx.tenantId;
 
 		if (ctxTenantId && envelope.tenantId && envelope.tenantId !== ctxTenantId) {
-			throw new BadRequestException(`禁止覆盖租户标识：上下文 tenantId=${ctxTenantId}，入参 tenantId=${envelope.tenantId}。`);
+			throw new BadRequestException(
+				`禁止覆盖租户标识：上下文 tenantId=${ctxTenantId}，入参 tenantId=${envelope.tenantId}。`
+			);
 		}
 
 		const enriched = new IntegrationEventEnvelope<TPayload>({
@@ -47,4 +49,3 @@ export class ContextAwareOutbox implements IOutbox {
 		return this.inner.markFailed(params);
 	}
 }
-

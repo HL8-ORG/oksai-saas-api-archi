@@ -41,4 +41,3 @@ describe('platform-admin-api smoke', () => {
 		expect(body.status).toBe('ok');
 	});
 });
-

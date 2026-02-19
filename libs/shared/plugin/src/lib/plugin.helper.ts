@@ -53,10 +53,7 @@ export function getIntegrationEventSubscribersFromPlugins(plugins: PluginInput[]
 	return resolveLazyArrayFromPlugins(plugins, PLUGIN_METADATA.INTEGRATION_EVENT_SUBSCRIBERS);
 }
 
-function resolveLazyArrayFromPlugins(
-	plugins: PluginInput[],
-	metadataKey: symbol
-): Array<Type<unknown>> {
+function resolveLazyArrayFromPlugins(plugins: PluginInput[], metadataKey: symbol): Array<Type<unknown>> {
 	const modules = getPluginModules(plugins);
 	const out: Array<Type<unknown>> = [];
 
@@ -72,4 +69,3 @@ function resolveLazyArrayFromPlugins(
 function isDynamicModule(v: unknown): v is DynamicModule {
 	return !!v && typeof v === 'object' && 'module' in (v as any);
 }
-

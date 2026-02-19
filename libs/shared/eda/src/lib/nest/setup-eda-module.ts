@@ -11,7 +11,12 @@ import {
 	setupMessagingModule,
 	type SetupMessagingModuleOptions
 } from '@oksai/messaging';
-import { PgInbox, PgOutbox, setupMessagingPostgresModule, type SetupMessagingPostgresModuleOptions } from '@oksai/messaging-postgres';
+import {
+	PgInbox,
+	PgOutbox,
+	setupMessagingPostgresModule,
+	type SetupMessagingPostgresModuleOptions
+} from '@oksai/messaging-postgres';
 import { ContextAwareEventBus } from '../messaging/context-aware-event-bus';
 import { ContextAwareOutbox } from '../messaging/context-aware-outbox';
 
@@ -113,4 +118,3 @@ export function setupEdaModule(options: SetupEdaModuleOptions = {}): DynamicModu
 		exports: [OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, OKSAI_OUTBOX_TOKEN, OutboxPublisherService]
 	};
 }
-

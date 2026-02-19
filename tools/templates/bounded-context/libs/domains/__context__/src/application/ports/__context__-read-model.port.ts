@@ -9,4 +9,3 @@ export interface I__CONTEXT__ReadModel {
 }
 
 export const OKSAI___CONTEXT___READ_MODEL_TOKEN = Symbol.for('oksai:__context__:readModel');
-

@@ -19,4 +19,3 @@ export type PolicyHandler = (ability: AppAbility, context: PolicyContext) => boo
  * ```
  */
 export const CheckPolicies = (...handlers: PolicyHandler[]) => SetMetadata(OKSAI_CHECK_POLICIES_KEY, handlers);
-

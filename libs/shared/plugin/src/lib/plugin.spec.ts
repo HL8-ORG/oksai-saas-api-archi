@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { OksaiCorePlugin } from './plugin';
 import { PLUGIN_METADATA } from './plugin-metadata';
-import type { PluginMetadata } from './plugin.interface';
 
 describe('OksaiCorePlugin', () => {
 	describe('装饰器基础功能', () => {

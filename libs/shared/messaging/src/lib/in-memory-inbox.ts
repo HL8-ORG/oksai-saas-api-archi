@@ -19,4 +19,3 @@ export class InMemoryInbox implements IInbox {
 		this.processed.add(messageId);
 	}
 }
-

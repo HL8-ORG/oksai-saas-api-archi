@@ -21,4 +21,3 @@ export class InMemoryTenantRepository implements ITenantRepository {
 		return this.store.get(id.toString()) ?? null;
 	}
 }
-

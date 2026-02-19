@@ -18,4 +18,3 @@ export class RoleGrantedToUserEvent implements DomainEvent<RoleGrantedToUserEven
 		readonly eventData: RoleGrantedToUserEventData
 	) {}
 }
-

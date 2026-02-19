@@ -22,24 +22,24 @@
 ### 2.1 目标（Goals）
 
 - **G1：对外形成一个“平台级 EDA 能力包”**
-  - 应用侧只需装配一个模块/能力矩阵即可启用 EDA
-  - bounded context 按统一规范订阅/投影，减少重复样板
+    - 应用侧只需装配一个模块/能力矩阵即可启用 EDA
+    - bounded context 按统一规范订阅/投影，减少重复样板
 
 - **G2：把强约束内建为默认行为（Fail-fast + 不可绕过）**
-  - 集成事件发布必须走 Outbox（禁止直接 publish 作为跨边界投递）
-  - 消费必须走 Inbox（messageId 幂等）
-  - tenantId/userId/requestId 必须来自 CLS，禁止客户端覆盖
+    - 集成事件发布必须走 Outbox（禁止直接 publish 作为跨边界投递）
+    - 消费必须走 Inbox（messageId 幂等）
+    - tenantId/userId/requestId 必须来自 CLS，禁止客户端覆盖
 
 - **G3：保持可替换性**
-  - InProc -> MQ（Kafka/Rabbit/Redis Streams）替换时，业务代码尽量不变
-  - Postgres 实现（PgOutbox/PgInbox）作为可插拔 adapter
+    - InProc -> MQ（Kafka/Rabbit/Redis Streams）替换时，业务代码尽量不变
+    - Postgres 实现（PgOutbox/PgInbox）作为可插拔 adapter
 
 ### 2.2 非目标（Non-goals）
 
 - **NG1：不替代 CQRS**
-  - EDA 只关注“集成事件的发布与消费”，不处理命令/查询调度（该能力由未来 `@oksai/cqrs` 承担）
+    - EDA 只关注“集成事件的发布与消费”，不处理命令/查询调度（该能力由未来 `@oksai/cqrs` 承担）
 - **NG2：不改变已落地的一致性策略**
-  - 仍坚持“写侧先落库（EventStore/Outbox）→ publisher 异步投递 → 消费侧 inbox 幂等 → 投影写入读模型”
+    - 仍坚持“写侧先落库（EventStore/Outbox）→ publisher 异步投递 → 消费侧 inbox 幂等 → 投影写入读模型”
 
 ## 三、包边界与命名建议
 
@@ -91,9 +91,9 @@
 ### 4.3 `@oksai/app-kit`
 
 - 平台装配 `OksaiPlatformModule`：
-  - 用 `ContextAwareOutbox` 包装 outbox，禁止覆盖 tenantId，并注入 CLS 元数据
-  - 用 `ContextAwareEventBus` 包装 event bus（发布时补齐 CLS 元数据）
-  - 将 `OutboxPublisherService` 注册在装配层上下文中（强约束：确保注入的是覆盖后的 outbox）
+    - 用 `ContextAwareOutbox` 包装 outbox，禁止覆盖 tenantId，并注入 CLS 元数据
+    - 用 `ContextAwareEventBus` 包装 event bus（发布时补齐 CLS 元数据）
+    - 将 `OutboxPublisherService` 注册在装配层上下文中（强约束：确保注入的是覆盖后的 outbox）
 
 > 这部分是自研 EDA 包最重要的“约束层”，应迁移到 `@oksai/eda`，避免 app-kit 承担过多 EDA 细节。
 
@@ -133,10 +133,10 @@
 建议提供两种方式（二选一或同时支持）：
 
 - **方式 A（轻量）**：提供一个 helper 函数/基类
-  - `subscribeIntegrationEvent(eventType, handler)`：内部自动做 inbox 幂等与事务包装
+    - `subscribeIntegrationEvent(eventType, handler)`：内部自动做 inbox 幂等与事务包装
 - **方式 B（框架化）**：提供装饰器与扫描器
-  - `@IntegrationEventHandler('TenantCreated')` 标注订阅者
-  - `EdaExplorerService` 在启动时自动注册所有订阅者
+    - `@IntegrationEventHandler('TenantCreated')` 标注订阅者
+    - `EdaExplorerService` 在启动时自动注册所有订阅者
 
 > 早期可从方式 A 起步，后续再演进到方式 B。
 
@@ -160,9 +160,9 @@
 
 - 新增 `@oksai/eda` 包
 - 从 `@oksai/app-kit` 迁移：
-  - `ContextAwareOutbox`
-  - `ContextAwareEventBus`
-  - Publisher 的强约束注册说明（可通过 `setupEdaModule` 内部完成）
+    - `ContextAwareOutbox`
+    - `ContextAwareEventBus`
+    - Publisher 的强约束注册说明（可通过 `setupEdaModule` 内部完成）
 - `@oksai/eda` 提供 `setupEdaModule()` 统一装配
 - `@oksai/app-kit` 改为“只做平台装配”，调用 `setupEdaModule()` 而不是自己拼装 messaging 细节
 
@@ -209,4 +209,3 @@
 ---
 
 > 备注：本方案遵循项目宪章的中文优先与强约束原则；落地时应在 `docs/ARCHITECTURE.md` 的能力矩阵与实施路线图中同步更新（如需）。
-

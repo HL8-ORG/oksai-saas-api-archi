@@ -17,4 +17,3 @@ export class __CONTEXT__CreatedEvent implements DomainEvent<__CONTEXT__CreatedEv
 		readonly eventData: __CONTEXT__CreatedEventData
 	) {}
 }
-

@@ -156,15 +156,6 @@ function getRequestIdFromReq(req: unknown): string {
 	);
 }
 
-function hasOptionalDependency(name: string): boolean {
-	try {
-		require.resolve(name);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
 /**
  * @description
  * 在 pnpm workspace 的隔离 node_modules 结构下，依赖可能不在当前包的 node_modules 中。

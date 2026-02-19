@@ -28,10 +28,11 @@ export class DatabaseMigratorService implements OnModuleInit {
 	}
 
 	private isEnabled(): boolean {
-		const v = String(process.env.DB_MIGRATIONS_RUN ?? '').trim().toLowerCase();
+		const v = String(process.env.DB_MIGRATIONS_RUN ?? '')
+			.trim()
+			.toLowerCase();
 		if (v === 'true') return true;
 		if (v === 'false') return false;
 		return (process.env.NODE_ENV ?? 'development') === 'development';
 	}
 }
-

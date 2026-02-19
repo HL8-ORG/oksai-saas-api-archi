@@ -18,4 +18,3 @@ export interface IRoleResolver {
 }
 
 export const OKSAI_ROLE_RESOLVER_TOKEN = Symbol.for('oksai:authorization:roleResolver');
-

@@ -17,4 +17,3 @@ export class __CONTEXT__ReadModelEntity {
 	@Property({ nullable: false })
 	updatedAt: Date = new Date();
 }
-

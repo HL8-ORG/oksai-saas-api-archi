@@ -78,7 +78,9 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
 	}
 
 	private isEnabled(): boolean {
-		const enabled = String(process.env.OUTBOX_PUBLISHER_ENABLED ?? '').trim().toLowerCase();
+		const enabled = String(process.env.OUTBOX_PUBLISHER_ENABLED ?? '')
+			.trim()
+			.toLowerCase();
 		if (enabled === 'true') return true;
 		if (enabled === 'false') return false;
 		return (process.env.NODE_ENV ?? 'development') === 'development';
@@ -99,4 +101,3 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
 		return Math.min(max, base * 2 ** exp);
 	}
 }
-

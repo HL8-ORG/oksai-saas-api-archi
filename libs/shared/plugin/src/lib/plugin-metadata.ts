@@ -13,4 +13,3 @@ export const PLUGIN_METADATA = {
 	EXTENSIONS: Symbol.for('oksai:plugin:extensions'),
 	CONFIGURATION: Symbol.for('oksai:plugin:configuration')
 } as const;
-

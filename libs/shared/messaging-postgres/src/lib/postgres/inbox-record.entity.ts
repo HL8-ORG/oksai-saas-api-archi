@@ -21,4 +21,3 @@ export class InboxRecordEntity {
 	@Property({ fieldName: 'processed_at', nullable: false })
 	processedAt: Date = new Date();
 }
-

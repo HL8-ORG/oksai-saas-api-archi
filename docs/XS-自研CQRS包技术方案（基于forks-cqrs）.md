@@ -20,50 +20,50 @@
 ## 二、总体结论（可行性与必要性）
 
 - **可行性：高**
-  - `forks/cqrs` 已包含成熟的 CommandBus/QueryBus、decorators、ExplorerService、AsyncContext 等核心能力。
-  - 与 Nest 11 / rxjs / reflect-metadata 的兼容性高，工程集成风险可控。
+    - `forks/cqrs` 已包含成熟的 CommandBus/QueryBus、decorators、ExplorerService、AsyncContext 等核心能力。
+    - 与 Nest 11 / rxjs / reflect-metadata 的兼容性高，工程集成风险可控。
 - **必要性：中等偏高（建议先做 Phase A）**
-  - 早期“框架化”能显著提升团队一致性与迭代速度。
-  - 但必须严格处理与现有 `@oksai/messaging + Outbox/Inbox` 的边界，避免两套 EventBus 语义冲突。
+    - 早期“框架化”能显著提升团队一致性与迭代速度。
+    - 但必须严格处理与现有 `@oksai/messaging + Outbox/Inbox` 的边界，避免两套 EventBus 语义冲突。
 
 ## 三、设计目标与非目标
 
 ### 3.1 目标（Goals）
 
 - **G1：统一用例调度入口**
-  - Controller/Facade 通过 `CommandBus.execute()` / `QueryBus.execute()` 调用用例。
-  - Use-case 的注册/路由由框架完成（基于 decorators + Explorer）。
+    - Controller/Facade 通过 `CommandBus.execute()` / `QueryBus.execute()` 调用用例。
+    - Use-case 的注册/路由由框架完成（基于 decorators + Explorer）。
 
 - **G2：内建“强约束”**
-  - tenantId/userId/requestId 必须来自 CLS
-  - 禁止把“进程内事件总线”当作“集成事件通道”
-  - 用例级别的日志字段规范、错误语义（中文）、可观测性埋点
+    - tenantId/userId/requestId 必须来自 CLS
+    - 禁止把“进程内事件总线”当作“集成事件通道”
+    - 用例级别的日志字段规范、错误语义（中文）、可观测性埋点
 
 - **G3：逐步扩展横切能力**
-  - 在不破坏现有业务闭环（EventStore/Outbox/Projection）的前提下，逐步引入用例 pipeline（验证/鉴权/幂等/审计）。
+    - 在不破坏现有业务闭环（EventStore/Outbox/Projection）的前提下，逐步引入用例 pipeline（验证/鉴权/幂等/审计）。
 
 ### 3.2 非目标（Non-goals）
 
 - **NG1：不替代 Outbox/Inbox**
-  - 自研 CQRS 解决的是“用例调度与组织”，不解决可靠投递与幂等消费。
+    - 自研 CQRS 解决的是“用例调度与组织”，不解决可靠投递与幂等消费。
 - **NG2：不在早期引入 Saga/Domain Event 全量能力**
-  - Phase A 不引入 Saga/EventBus，以降低复杂度与概念冲突。
+    - Phase A 不引入 Saga/EventBus，以降低复杂度与概念冲突。
 - **NG3：不改变现有领域模型与持久化闭环**
-  - 现有 `@oksai/event-store`、`@oksai/messaging(-postgres)`、`@oksai/database` 继续作为主线能力。
+    - 现有 `@oksai/event-store`、`@oksai/messaging(-postgres)`、`@oksai/database` 继续作为主线能力。
 
 ## 四、边界与强约束（最重要）
 
 ### 4.1 “用例调度”与“集成事件”严格分离
 
 - **@oksai/cqrs（自研）只负责：**
-  - Command/Query 的调度与 handler 注册
-  - 用例横切 pipeline（后续）
+    - Command/Query 的调度与 handler 注册
+    - 用例横切 pipeline（后续）
 
 - **@oksai/messaging（既有）只负责：**
-  - 集成事件 Envelope（`IntegrationEventEnvelope`）
-  - Outbox append / Inbox 去重
-  - OutboxPublisher 可靠投递
-  - IEventBus 作为“平台内事件通道”（订阅投影、订阅插件等）
+    - 集成事件 Envelope（`IntegrationEventEnvelope`）
+    - Outbox append / Inbox 去重
+    - OutboxPublisher 可靠投递
+    - IEventBus 作为“平台内事件通道”（订阅投影、订阅插件等）
 
 **强约束：集成事件发布必须走 Outbox。禁止在 CQRS 包里提供可被误用的 Integration Event 发布 API。**
 
@@ -177,10 +177,10 @@ Phase B 的目标是把“横切能力”框架化，避免散落在 handler 中
 ### 9.2 优先迁移对象
 
 1. `tools/templates/bounded-context`：
-   - 把 `ApplicationService` 内的 `new CommandHandler(...)` 改为注入 `CommandBus` 并 `execute()`
+    - 把 `ApplicationService` 内的 `new CommandHandler(...)` 改为注入 `CommandBus` 并 `execute()`
 2. `libs/domains/tenant`：
-   - 将 `CreateTenantCommandHandler` 通过 decorator 注册到 CQRS
-   - `TenantApplicationService` 改为 `commandBus.execute(CreateTenantCommand)`
+    - 将 `CreateTenantCommandHandler` 通过 decorator 注册到 CQRS
+    - `TenantApplicationService` 改为 `commandBus.execute(CreateTenantCommand)`
 
 ### 9.3 兼容期策略
 
@@ -196,9 +196,9 @@ Phase B 的目标是把“横切能力”框架化，避免散落在 handler 中
 ### 10.1 单元测试
 
 - CQRS 包本身需要覆盖：
-  - handler 注册与路由
-  - CLS 透传（若涉及）
-  - pipeline 执行顺序（Phase B）
+    - handler 注册与路由
+    - CLS 透传（若涉及）
+    - pipeline 执行顺序（Phase B）
 
 ### 10.2 集成测试
 
@@ -208,7 +208,7 @@ Phase B 的目标是把“横切能力”框架化，避免散落在 handler 中
 ### 10.3 可观测性
 
 - 统一在 pipeline 或 bus 层记录：
-  - useCaseName、tenantId、userId、requestId、duration、status
+    - useCaseName、tenantId、userId、requestId、duration、status
 - 错误消息必须中文（与项目宪章一致）
 
 ## 十一、风险清单与回滚方案
@@ -236,4 +236,3 @@ Phase A 的回滚策略应简单：
 ---
 
 > 备注：本文为技术方案，后续实施时应拆分为阶段性里程碑（Phase A/B/C）并在代码中以强约束注释与 fail-fast 校验落地。
-

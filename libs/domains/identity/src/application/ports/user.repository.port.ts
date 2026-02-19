@@ -7,4 +7,3 @@ export interface IUserRepository {
 	save(aggregate: UserAggregate): Promise<void>;
 	findById(id: string): Promise<UserAggregate | null>;
 }
-

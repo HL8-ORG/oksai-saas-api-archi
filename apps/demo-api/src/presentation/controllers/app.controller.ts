@@ -24,7 +24,7 @@ export class AppController {
 		return {
 			message,
 			timestamp: new Date().toISOString(),
-			env,
+			env
 		};
 	}
 
@@ -35,7 +35,7 @@ export class AppController {
 		const uptime = process.uptime();
 		return {
 			status: 'ok',
-			uptime,
+			uptime
 		};
 	}
 
@@ -49,7 +49,7 @@ export class AppController {
 		return {
 			port,
 			nodeEnv,
-			logLevel,
+			logLevel
 		};
 	}
 }

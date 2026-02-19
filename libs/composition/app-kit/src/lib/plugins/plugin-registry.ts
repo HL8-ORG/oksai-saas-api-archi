@@ -113,4 +113,3 @@ export function resolvePluginsFromEnv(options: ResolvePluginsFromEnvOptions = {}
 
 	return plugins;
 }
-

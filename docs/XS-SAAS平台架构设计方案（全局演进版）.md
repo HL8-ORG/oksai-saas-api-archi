@@ -883,62 +883,69 @@ export interface ExternalDataBatch {
 ### 14.1 核心功能实现
 
 #### 数据质量评分器
+
 - **接口**：`IDataQualityScorer`
 - **默认实现**：`DefaultDataQualityScorer`
 - **评分算法**：5 维度加权评分
-  - 基础完整性（30%）：必填字段完整性
-  - 分类准确性（20%）：标签和分类设置
-  - 分析维度完整性（25%）：分析维度设置
-  - 审计完整性（15%）：审计信息完整性
-  - 扩展能力利用（10%）：扩展能力使用情况
+    - 基础完整性（30%）：必填字段完整性
+    - 分类准确性（20%）：标签和分类设置
+    - 分析维度完整性（25%）：分析维度设置
+    - 审计完整性（15%）：审计信息完整性
+    - 扩展能力利用（10%）：扩展能力使用情况
 - **NestJS 服务**：`DataQualityScorerService`
 
 #### 分析维度计算器
+
 - **接口**：`IAnalyticsDimensionCalculator`
 - **时间维度计算器**：`TimeDimensionCalculator`
-  - 提取：年、月、周、日、小时、季度
-  - 支持 ISO 8601 周数计算
+    - 提取：年、月、周、日、小时、季度
+    - 支持 ISO 8601 周数计算
 - **业务维度计算器**：`BusinessDimensionCalculator`
-  - 提取：业务类型、状态、金额范围、货币
-  - 支持金额范围分类（0-100、100-500、500-1000、1000-5000、5000+）
+    - 提取：业务类型、状态、金额范围、货币
+    - 支持金额范围分类（0-100、100-500、500-1000、1000-5000、5000+）
 - **NestJS 服务**：`AnalyticsDimensionCalculatorService`
 
 #### 分析报表生成
+
 - **接口**：`IAnalyticsReportService`
 - **实现**：`AnalyticsReportService`
 - **支持的报表类型**：
-  - `SUMMARY`：汇总报表（按维度聚合统计）
-  - `TREND`：趋势报表（时间序列分析）
-  - `QUALITY`：质量报表（数据质量统计）
-  - `COMPARISON`：对比报表（多维度对比分析）
+    - `SUMMARY`：汇总报表（按维度聚合统计）
+    - `TREND`：趋势报表（时间序列分析）
+    - `QUALITY`：质量报表（数据质量统计）
+    - `COMPARISON`：对比报表（多维度对比分析）
 - **读模型**：`AnalyticsReportEntity`
-  - 自动过期清理机制
-  - 支持报表缓存和历史查询
+    - 自动过期清理机制
+    - 支持报表缓存和历史查询
 
 ### 14.2 单元测试覆盖
 
-| 测试套件 | 测试用例数 | 覆盖范围 |
-|---------|-----------|---------|
-| DefaultDataQualityScorer | 12+ | 评分算法、严格模式、批量评分、边界条件 |
-| TimeDimensionCalculator | 15+ | 时间维度、周数计算、季度计算、闰年 |
-| BusinessDimensionCalculator | 12+ | 业务维度、金额分类、边界值、缺失字段 |
-| **总计** | **40+** | **核心功能全覆盖** |
+| 测试套件                    | 测试用例数 | 覆盖范围                               |
+| --------------------------- | ---------- | -------------------------------------- |
+| DefaultDataQualityScorer    | 12+        | 评分算法、严格模式、批量评分、边界条件 |
+| TimeDimensionCalculator     | 15+        | 时间维度、周数计算、季度计算、闰年     |
+| BusinessDimensionCalculator | 12+        | 业务维度、金额分类、边界值、缺失字段   |
+| **总计**                    | **40+**    | **核心功能全覆盖**                     |
 
 ### 14.3 API 控制器
 
 #### 数据质量评分 API
+
 - `POST /analytics/quality/score` - 评估单个聚合根的数据质量
 - `POST /analytics/quality/batch` - 批量评估数据质量
 
 #### 分析维度计算 API
+
 - `POST /analytics/dimensions/calculate` - 计算分析维度
 - `GET /analytics/dimensions/calculators` - 获取已注册的计算器列表
 
 #### 分析报表生成 API
+
 - `POST /analytics/reports/generate` - 生成分析报表
 - `GET /analytics/reports/template` - 获取报表模板
 
 #### 服务信息 API
+
 - `GET /analytics/info` - 获取服务版本和配置信息
 
 ### 14.4 文档和配置
@@ -956,13 +963,13 @@ export interface ExternalDataBatch {
 import { AnalyticsModule } from '@oksai/analytics';
 
 @Module({
-  imports: [
-    AnalyticsModule.forRoot({
-      enableQualityScoring: true,
-      enableDimensionCalculation: true,
-      enableReportGeneration: true
-    })
-  ]
+	imports: [
+		AnalyticsModule.forRoot({
+			enableQualityScoring: true,
+			enableDimensionCalculation: true,
+			enableReportGeneration: true
+		})
+	]
 })
 export class AppModule {}
 ```

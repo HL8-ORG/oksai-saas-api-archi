@@ -13,4 +13,3 @@ export const PLATFORM_PLUGINS: Record<string, PluginInput> = {
 	demo: DemoPluginModule,
 	tenantCreatedLogger: TenantCreatedLoggerPluginModule
 };
-

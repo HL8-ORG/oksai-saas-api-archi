@@ -27,4 +27,3 @@ export class IdentityRoleAssignmentEntity {
 	@Property({ nullable: false })
 	createdAt: Date = new Date();
 }
-

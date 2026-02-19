@@ -24,4 +24,3 @@ export class PgTenantReadModel implements ITenantReadModel {
 		return { tenantId: String(rows[0]!.tenant_id), name: String(rows[0]!.name) };
 	}
 }
-

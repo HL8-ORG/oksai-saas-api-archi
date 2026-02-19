@@ -10,4 +10,3 @@ export interface I__CONTEXT__Repository {
 	save(aggregate: __CONTEXT__Aggregate): Promise<void>;
 	findById(id: string): Promise<__CONTEXT__Aggregate | null>;
 }
-

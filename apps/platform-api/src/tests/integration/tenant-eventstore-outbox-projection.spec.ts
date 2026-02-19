@@ -84,4 +84,3 @@ describe('tenant end-to-end (EventStore + Outbox + Projection)', () => {
 		}
 	});
 });
-

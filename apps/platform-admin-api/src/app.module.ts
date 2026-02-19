@@ -48,4 +48,3 @@ const enabledPlugins = resolvePluginsFromEnv({ envName: 'PLUGINS_ENABLED' });
 	providers: []
 })
 export class AppModule {}
-

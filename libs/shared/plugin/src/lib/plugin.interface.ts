@@ -64,4 +64,3 @@ export type PluginLifecycleMethods = IOnPluginBootstrap & IOnPluginDestroy;
  * @description 插件输入类型（支持 Type 或 DynamicModule）
  */
 export type PluginInput = Type<unknown> | DynamicModule;
-

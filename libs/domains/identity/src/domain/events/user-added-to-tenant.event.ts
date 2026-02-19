@@ -17,4 +17,3 @@ export class UserAddedToTenantEvent implements DomainEvent<UserAddedToTenantEven
 		readonly eventData: UserAddedToTenantEventData
 	) {}
 }
-

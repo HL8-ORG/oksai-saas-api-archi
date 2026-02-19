@@ -37,7 +37,7 @@ export interface SetupDatabaseModuleOptions {
  * - 仅负责“基础设施装配”，不承载业务实体
  */
 export function setupDatabaseModule(options: SetupDatabaseModuleOptions = {}): DynamicModule {
-	const debug = options.debug ?? ((process.env.NODE_ENV ?? 'development') === 'development');
+	const debug = options.debug ?? (process.env.NODE_ENV ?? 'development') === 'development';
 	const migrationsTableName = options.migrationsTableName ?? 'oksai_migrations';
 	// 运行时 __dirname 位于 dist/src/lib/nest；迁移文件位于 dist/src/migrations
 	const migrationsPathTs = join(__dirname, '..', '..', 'migrations');
@@ -86,4 +86,3 @@ export function setupDatabaseModule(options: SetupDatabaseModuleOptions = {}): D
 		exports: [DatabaseTransactionHost, DatabaseUnitOfWork, DatabaseMigratorService]
 	};
 }
-

@@ -39,4 +39,3 @@ bootstrap().catch((error) => {
 	console.error('管理端应用启动失败：', error);
 	process.exit(1);
 });
-

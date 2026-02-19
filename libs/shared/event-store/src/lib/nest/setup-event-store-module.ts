@@ -33,4 +33,3 @@ export function setupEventStoreModule(options: SetupEventStoreModuleOptions = {}
 		exports: [OKSAI_EVENT_STORE_TOKEN, PgEventStore]
 	};
 }
-

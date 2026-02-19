@@ -47,9 +47,7 @@ describe('platform-admin-api auth + casl (E2E)', () => {
 		expect(resp.status).toBe(401);
 	});
 
-	it(
-		'should allow protected endpoint after sign-up session established',
-		async () => {
+	it('should allow protected endpoint after sign-up session established', async () => {
 		const signup = await fetch(`${baseUrl}/admin/api/auth/sign-up/email`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -70,7 +68,5 @@ describe('platform-admin-api auth + casl (E2E)', () => {
 			if (Date.now() > deadline) throw new Error('等待角色投影超时：未能访问受保护接口。');
 			await new Promise((r) => setTimeout(r, 100));
 		}
-		},
-		20_000
-	);
+	}, 20_000);
 });

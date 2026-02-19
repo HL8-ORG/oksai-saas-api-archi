@@ -38,7 +38,8 @@ export class TenantCreatedLoggerPluginModule implements IOnPluginBootstrap, IOnP
 	async onPluginBootstrap(): Promise<void> {
 		this.disposable = await this.eventBus.subscribe('TenantCreated', async (event: any) => {
 			// 期望收到的是 IntegrationEventEnvelope
-			const envelope = event instanceof IntegrationEventEnvelope ? event : (event as IntegrationEventEnvelope<any>);
+			const envelope =
+				event instanceof IntegrationEventEnvelope ? event : (event as IntegrationEventEnvelope<any>);
 			const messageId = String(envelope?.messageId ?? '');
 			if (!messageId) {
 				this.logger.warn('收到 TenantCreated 事件但缺少 messageId，已跳过（无法做幂等去重）。');
@@ -70,4 +71,3 @@ export class TenantCreatedLoggerPluginModule implements IOnPluginBootstrap, IOnP
 		this.logger.log('TenantCreatedLogger 插件已取消订阅。');
 	}
 }
-

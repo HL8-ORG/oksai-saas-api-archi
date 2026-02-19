@@ -112,4 +112,3 @@ export class PgEventStore implements IEventStore {
 		return { currentVersion, events };
 	}
 }
-

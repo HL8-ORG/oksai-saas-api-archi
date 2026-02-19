@@ -24,4 +24,3 @@ export { BetterAuthController } from './lib/nest/better-auth.controller';
 
 // 工具函数
 export { fromNodeHeaders } from './lib/nest/utils/node-headers';
-

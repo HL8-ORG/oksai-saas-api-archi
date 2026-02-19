@@ -8,4 +8,3 @@ export * from './lib/outbox-publisher.service';
 export * from './lib/tokens';
 export * from './lib/integration-event-envelope';
 export * from './lib/nest/setup-messaging-module';
-

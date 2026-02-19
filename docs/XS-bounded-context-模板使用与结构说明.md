@@ -290,6 +290,7 @@ export class __CONTEXT__Module {
 ### 9.3 为什么写侧要写 Outbox 而不是直接 publish？
 
 强约束：先落库（EventStore/Outbox）再异步投递，避免“业务已提交但消息丢失/反之”的一致性问题。
+
 ### 9.4 为什么使用 CommandBus 调度而不是直接调用 Handler？
 
 使用 `CommandBus.execute()` 调度的好处：
@@ -306,4 +307,3 @@ export class __CONTEXT__Module {
 - 用于将 Command 绑定到对应的 Handler
 - 用于可观测性（日志、指标中记录用例名称）
 - 必须是稳定字符串，避免随意改名
-

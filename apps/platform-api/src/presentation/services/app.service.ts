@@ -17,4 +17,3 @@ export class AppService {
 		return `欢迎使用 Platform API！当前环境：${env}`;
 	}
 }
-

@@ -22,4 +22,3 @@ export interface ITenantRepository {
 	 */
 	findById(id: TenantId): Promise<TenantAggregate | null>;
 }
-

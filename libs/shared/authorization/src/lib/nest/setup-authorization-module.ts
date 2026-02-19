@@ -21,7 +21,9 @@ export interface SetupAuthorizationModuleOptions {
 	/**
 	 * @description 角色解析器 Provider（优先使用）
 	 */
-	roleResolverProvider?: { provide: typeof OKSAI_ROLE_RESOLVER_TOKEN; useExisting: unknown } | { provide: typeof OKSAI_ROLE_RESOLVER_TOKEN; useValue: IRoleResolver };
+	roleResolverProvider?:
+		| { provide: typeof OKSAI_ROLE_RESOLVER_TOKEN; useExisting: unknown }
+		| { provide: typeof OKSAI_ROLE_RESOLVER_TOKEN; useValue: IRoleResolver };
 }
 
 /**
@@ -49,11 +51,7 @@ export function setupAuthorizationModule(options: SetupAuthorizationModuleOption
 		module: class OksaiAuthorizationModule {},
 		global: options.isGlobal ?? false,
 		imports: options.imports ?? [],
-		providers: [
-			AbilityFactory,
-			provider as any
-		],
+		providers: [AbilityFactory, provider as any],
 		exports: [AbilityFactory, OKSAI_ROLE_RESOLVER_TOKEN]
 	};
 }
-

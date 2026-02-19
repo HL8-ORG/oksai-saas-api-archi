@@ -33,4 +33,3 @@ export class DatabaseTransactionHost {
 		return this.als.run(em, fn);
 	}
 }
-

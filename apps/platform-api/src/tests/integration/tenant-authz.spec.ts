@@ -70,4 +70,3 @@ describe('platform-api tenant auth + casl (E2E)', () => {
 		}
 	});
 });
-

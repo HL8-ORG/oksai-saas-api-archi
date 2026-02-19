@@ -90,7 +90,12 @@ export class PgOutbox implements IOutbox {
 		]);
 	}
 
-	async markFailed(params: { messageId: string; attempts: number; nextAttemptAt: Date; lastError?: string }): Promise<void> {
+	async markFailed(params: {
+		messageId: string;
+		attempts: number;
+		nextAttemptAt: Date;
+		lastError?: string;
+	}): Promise<void> {
 		const em = this.txHost.getCurrentEntityManager() ?? this.orm.em;
 		const conn = em.getConnection();
 		await conn.execute(
@@ -101,4 +106,3 @@ export class PgOutbox implements IOutbox {
 		);
 	}
 }
-

@@ -19,4 +19,3 @@ export class DomainException extends Error {
 		super(message);
 	}
 }
-

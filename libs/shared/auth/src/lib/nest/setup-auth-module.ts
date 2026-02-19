@@ -88,7 +88,8 @@ export interface SetupAuthModuleOptions {
  * @see {@link SetupAuthModuleOptions} 配置选项详情
  */
 export function setupAuthModule(options: SetupAuthModuleOptions = {}): DynamicModule {
-	const secret = options.secret ?? String(process.env.BETTER_AUTH_SECRET ?? 'dev_secret_dev_secret_dev_secret_dev_32');
+	const secret =
+		options.secret ?? String(process.env.BETTER_AUTH_SECRET ?? 'dev_secret_dev_secret_dev_secret_dev_32');
 	const baseURL = options.baseURL ?? String(process.env.BETTER_AUTH_BASE_URL ?? 'http://localhost:3001');
 	const trustedOrigins =
 		options.trustedOrigins ??
@@ -148,4 +149,3 @@ export function setupAuthModule(options: SetupAuthModuleOptions = {}): DynamicMo
  */
 @Module({})
 export class OksaiAuthModule {}
-

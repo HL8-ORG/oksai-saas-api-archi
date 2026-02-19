@@ -29,4 +29,3 @@ export function setupMessagingPostgresModule(options: SetupMessagingPostgresModu
 		exports: [PgOutbox, PgInbox]
 	};
 }
-

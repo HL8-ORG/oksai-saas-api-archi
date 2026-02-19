@@ -45,4 +45,3 @@ export class EventSourced__CONTEXT__Repository implements I__CONTEXT__Repository
 		return __CONTEXT__Aggregate.rehydrate(id, domainEvents);
 	}
 }
-

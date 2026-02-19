@@ -27,4 +27,3 @@ export class DebugController {
 		return { accepted: true, messageId: envelope.messageId };
 	}
 }
-

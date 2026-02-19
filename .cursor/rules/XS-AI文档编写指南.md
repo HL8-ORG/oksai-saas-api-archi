@@ -3,6 +3,7 @@ description: XS-AI 文档编写指南
 globs:
 alwaysApply: true
 ---
+
 # XS-AI 文档编写指南
 
 ## 概述

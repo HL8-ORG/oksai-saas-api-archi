@@ -2,11 +2,7 @@ import { type DynamicModule } from '@nestjs/common';
 import { InMemoryEventBus } from '../in-memory-event-bus';
 import { InMemoryInbox } from '../in-memory-inbox';
 import { InMemoryOutbox } from '../in-memory-outbox';
-import {
-	OKSAI_EVENT_BUS_TOKEN,
-	OKSAI_INBOX_TOKEN,
-	OKSAI_OUTBOX_TOKEN
-} from '../tokens';
+import { OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN, OKSAI_OUTBOX_TOKEN } from '../tokens';
 
 export interface SetupMessagingModuleOptions {
 	/**
@@ -54,8 +50,7 @@ export function setupMessagingModule(options: SetupMessagingModuleOptions = {}):
 			OKSAI_OUTBOX_TOKEN,
 			InMemoryEventBus,
 			InMemoryInbox,
-			InMemoryOutbox,
+			InMemoryOutbox
 		]
 	};
 }
-

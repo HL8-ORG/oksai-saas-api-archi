@@ -13,4 +13,3 @@ import { OKSAI_QUERY_HANDLER_METADATA } from './metadata.constants';
 export function QueryHandler(queryType: string): ClassDecorator {
 	return SetMetadata(OKSAI_QUERY_HANDLER_METADATA, queryType);
 }
-

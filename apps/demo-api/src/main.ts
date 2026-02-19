@@ -6,13 +6,9 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-	const app = await NestFactory.create<NestFastifyApplication>(
-		AppModule,
-		new FastifyAdapter(),
-		{
-			bufferLogs: true,
-		}
-	);
+	const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
+		bufferLogs: true
+	});
 
 	app.useLogger(app.get(Logger));
 
@@ -20,12 +16,12 @@ async function bootstrap() {
 		new ValidationPipe({
 			whitelist: true,
 			forbidNonWhitelisted: true,
-			transform: true,
+			transform: true
 		})
 	);
 
 	setupRequestIdResponseHeader(app, {
-		headerName: 'x-request-id',
+		headerName: 'x-request-id'
 	});
 
 	const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;

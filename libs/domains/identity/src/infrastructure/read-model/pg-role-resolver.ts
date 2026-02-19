@@ -27,4 +27,3 @@ export class PgRoleResolver implements IRoleResolver {
 		return rows.map((r) => r.role);
 	}
 }
-

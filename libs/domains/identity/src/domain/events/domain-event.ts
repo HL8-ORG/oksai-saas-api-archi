@@ -8,4 +8,3 @@ export interface DomainEvent<TEventData extends object = object> {
 	readonly eventData: TEventData;
 	readonly schemaVersion?: number;
 }
-

@@ -11,13 +11,13 @@ import { AppService } from './presentation/services/app.service';
 const appConfig = registerAppConfig('app', () => ({
 	port: env.int('PORT', { defaultValue: 3000 }),
 	nodeEnv: env.string('NODE_ENV', { defaultValue: 'development' }),
-	logLevel: env.string('LOG_LEVEL', { defaultValue: 'info' }),
+	logLevel: env.string('LOG_LEVEL', { defaultValue: 'info' })
 }));
 
 @Module({
 	imports: [
 		setupConfigModule({
-			load: [appConfig],
+			load: [appConfig]
 		}),
 		setupOksaiContextModule({
 			tenantRequired: {
@@ -41,19 +41,19 @@ const appConfig = registerAppConfig('app', () => ({
 			},
 			customProps: (req) => ({
 				tenantId: (req as any).tenantId,
-				userId: (req as any).userId,
-			}),
+				userId: (req as any).userId
+			})
 		}),
-		TenantModule,
+		TenantModule
 	],
 	controllers: [AppController, TenantController],
-	providers: [AppService],
+	providers: [AppService]
 })
 export class AppModule {
 	static register() {
 		return {
 			module: AppModule,
-			imports: [AppModule],
+			imports: [AppModule]
 		};
 	}
 }

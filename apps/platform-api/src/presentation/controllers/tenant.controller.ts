@@ -33,4 +33,3 @@ export class TenantController {
 		return await this.readModel.findByTenantId(tenantId);
 	}
 }
-

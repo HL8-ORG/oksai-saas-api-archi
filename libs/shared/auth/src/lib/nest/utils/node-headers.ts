@@ -43,4 +43,3 @@ export function fromNodeHeaders(nodeHeaders: Record<string, unknown>): Headers {
 	}
 	return headers;
 }
-

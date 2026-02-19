@@ -121,4 +121,3 @@ export interface IOutbox {
 	 */
 	markFailed(params: { messageId: string; attempts: number; nextAttemptAt: Date; lastError?: string }): Promise<void>;
 }
-

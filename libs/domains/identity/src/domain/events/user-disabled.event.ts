@@ -17,4 +17,3 @@ export class UserDisabledEvent implements DomainEvent<UserDisabledEventData> {
 		readonly eventData: UserDisabledEventData
 	) {}
 }
-

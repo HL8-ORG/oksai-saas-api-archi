@@ -15,10 +15,11 @@ export class DevOnlyGuard implements CanActivate {
 		const nodeEnv = (process.env.NODE_ENV ?? 'development').trim();
 		if (nodeEnv === 'development') return true;
 
-		const enabled = String(process.env.DEBUG_ROUTES_ENABLED ?? '').trim().toLowerCase();
+		const enabled = String(process.env.DEBUG_ROUTES_ENABLED ?? '')
+			.trim()
+			.toLowerCase();
 		if (enabled === 'true') return true;
 
 		throw new NotFoundException('未找到资源。');
 	}
 }
-

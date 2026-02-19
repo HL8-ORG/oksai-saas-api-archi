@@ -95,4 +95,3 @@ export function createIntegrationEventEnvelope<TPayload extends object>(
 		requestId: meta.requestId
 	});
 }
-

@@ -10,4 +10,3 @@ export class CreateTenantDto {
 	@Max(10000)
 	maxMembers?: number;
 }
-

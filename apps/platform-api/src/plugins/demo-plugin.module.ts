@@ -37,4 +37,3 @@ export class DemoPluginModule implements IOnPluginBootstrap, IOnPluginDestroy {
 		this.logger.log('Demo 插件销毁完成。');
 	}
 }
-

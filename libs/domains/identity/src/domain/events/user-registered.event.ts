@@ -17,4 +17,3 @@ export class UserRegisteredEvent implements DomainEvent<UserRegisteredEventData>
 		readonly eventData: UserRegisteredEventData
 	) {}
 }
-

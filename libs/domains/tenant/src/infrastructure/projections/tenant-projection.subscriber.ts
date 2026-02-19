@@ -1,7 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { MikroORM } from '@mikro-orm/core';
 import { DatabaseTransactionHost, DatabaseUnitOfWork } from '@oksai/database';
-import { type IntegrationEventEnvelope, type IEventBus, type IInbox, OKSAI_EVENT_BUS_TOKEN, OKSAI_INBOX_TOKEN } from '@oksai/messaging';
+import {
+	type IntegrationEventEnvelope,
+	type IEventBus,
+	type IInbox,
+	OKSAI_EVENT_BUS_TOKEN,
+	OKSAI_INBOX_TOKEN
+} from '@oksai/messaging';
 import { BaseIntegrationEventSubscriber } from '@oksai/eda';
 
 /**
@@ -25,16 +31,23 @@ export class TenantProjectionSubscriber extends BaseIntegrationEventSubscriber {
 	}
 
 	protected async setupSubscriptions(): Promise<void> {
-		await this.subscribe<{ aggregateId: string; occurredAt: string; eventData: { name: string }; schemaVersion: number }>(
-			'TenantCreated',
-			async (env) => {
-				await this.handleTenantCreated(env);
-			}
-		);
+		await this.subscribe<{
+			aggregateId: string;
+			occurredAt: string;
+			eventData: { name: string };
+			schemaVersion: number;
+		}>('TenantCreated', async (env) => {
+			await this.handleTenantCreated(env);
+		});
 	}
 
 	private async handleTenantCreated(
-		env: IntegrationEventEnvelope<{ aggregateId: string; occurredAt: string; eventData: { name: string }; schemaVersion: number }>
+		env: IntegrationEventEnvelope<{
+			aggregateId: string;
+			occurredAt: string;
+			eventData: { name: string };
+			schemaVersion: number;
+		}>
 	): Promise<void> {
 		// 基础校验：必须有 tenantId（用于行级隔离）
 		const tenantId = env.tenantId;

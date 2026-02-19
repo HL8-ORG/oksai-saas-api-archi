@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { DynamicModule, Type } from '@nestjs/common';
+import type { DynamicModule } from '@nestjs/common';
 import { PLUGIN_METADATA } from './plugin-metadata';
 import {
 	getPluginModules,

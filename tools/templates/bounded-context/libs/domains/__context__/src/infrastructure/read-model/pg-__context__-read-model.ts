@@ -26,4 +26,3 @@ export class Pg__CONTEXT__ReadModel implements I__CONTEXT__ReadModel {
 		return { tenantId: row.tenantId, name: row.name };
 	}
 }
-

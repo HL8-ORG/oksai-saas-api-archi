@@ -18,4 +18,3 @@ export class ProjectionCheckpointEntity {
 	@Property({ fieldName: 'updated_at', nullable: false })
 	updatedAt: Date = new Date();
 }
-

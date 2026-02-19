@@ -1,4 +1,4 @@
-import { setupRequestIdResponseHeader, SetupRequestIdResponseHeaderOptions } from './setup-request-id-response-header';
+import { setupRequestIdResponseHeader } from './setup-request-id-response-header';
 
 describe('setupRequestIdResponseHeader', () => {
 	let mockApp: any;

@@ -7,4 +7,3 @@
 export function makeTenantSubject(tenantId: string): { __caslSubjectType__: 'Tenant'; tenantId: string } {
 	return { __caslSubjectType__: 'Tenant', tenantId };
 }
-

@@ -80,4 +80,3 @@ export class PluginModule implements OnModuleInit, OnModuleDestroy {
 		}
 	}
 }
-

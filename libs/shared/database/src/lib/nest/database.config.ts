@@ -41,26 +41,31 @@ export interface DatabaseConfig {
  * - password=test_password
  * - dbName=test_oksai
  */
-export const databaseConfig: ReturnType<typeof registerAppConfig<DatabaseConfig>> = registerAppConfig<DatabaseConfig>('database', () => {
-	const useTestPort = String(process.env.DB_USE_TEST_PORT ?? '').trim().toLowerCase() === 'true';
-	const portDefault = useTestPort ? 5433 : 5432;
+export const databaseConfig: ReturnType<typeof registerAppConfig<DatabaseConfig>> = registerAppConfig<DatabaseConfig>(
+	'database',
+	() => {
+		const useTestPort =
+			String(process.env.DB_USE_TEST_PORT ?? '')
+				.trim()
+				.toLowerCase() === 'true';
+		const portDefault = useTestPort ? 5433 : 5432;
 
-	const host = String(process.env.DB_HOST ?? '127.0.0.1').trim();
-	const port = Number(String(process.env.DB_PORT ?? portDefault).trim());
-	const user = String(process.env.DB_USER ?? 'postgres').trim();
-	const password = String(process.env.DB_PASSWORD ?? 'test_password');
-	const dbName = String(process.env.DB_NAME ?? 'test_oksai').trim();
+		const host = String(process.env.DB_HOST ?? '127.0.0.1').trim();
+		const port = Number(String(process.env.DB_PORT ?? portDefault).trim());
+		const user = String(process.env.DB_USER ?? 'postgres').trim();
+		const password = String(process.env.DB_PASSWORD ?? 'test_password');
+		const dbName = String(process.env.DB_NAME ?? 'test_oksai').trim();
 
-	if (!Number.isFinite(port) || port <= 0) {
-		throw new Error(`数据库配置错误：DB_PORT 非法（收到 ${String(process.env.DB_PORT)}）。`);
+		if (!Number.isFinite(port) || port <= 0) {
+			throw new Error(`数据库配置错误：DB_PORT 非法（收到 ${String(process.env.DB_PORT)}）。`);
+		}
+
+		return {
+			host,
+			port,
+			user,
+			password,
+			dbName
+		} satisfies DatabaseConfig;
 	}
-
-	return {
-		host,
-		port,
-		user,
-		password,
-		dbName
-	} satisfies DatabaseConfig;
-});
-
+);

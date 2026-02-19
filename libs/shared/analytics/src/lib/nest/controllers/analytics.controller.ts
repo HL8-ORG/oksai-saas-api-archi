@@ -216,11 +216,14 @@ export class AnalyticsController {
 					category: request.category,
 					tags: request.tags
 				},
-				timeRange: request.startTime && request.endTime ? {
-					start: new Date(request.startTime),
-					end: new Date(request.endTime),
-					granularity: request.granularity
-				} : undefined,
+				timeRange:
+					request.startTime && request.endTime
+						? {
+								start: new Date(request.startTime),
+								end: new Date(request.endTime),
+								granularity: request.granularity
+							}
+						: undefined,
 				aggregations: request.aggregations
 			};
 

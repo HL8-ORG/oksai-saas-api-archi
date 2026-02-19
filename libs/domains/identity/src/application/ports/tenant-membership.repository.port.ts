@@ -7,4 +7,3 @@ export interface ITenantMembershipRepository {
 	save(aggregate: TenantMembershipAggregate): Promise<void>;
 	findByTenantAndUser(tenantId: string, userId: string): Promise<TenantMembershipAggregate | null>;
 }
-

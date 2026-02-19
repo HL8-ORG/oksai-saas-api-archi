@@ -49,4 +49,3 @@ export class EventStoreEventEntity {
 	@Property({ fieldName: 'created_at', nullable: false })
 	createdAt: Date = new Date();
 }
-

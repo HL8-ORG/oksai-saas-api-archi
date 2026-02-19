@@ -18,4 +18,3 @@ export class PublishIntegrationEventDto {
 	@IsObject()
 	payload!: Record<string, unknown>;
 }
-

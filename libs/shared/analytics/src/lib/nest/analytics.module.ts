@@ -41,7 +41,11 @@ export class AnalyticsModule {
 	 * @param config - 模块配置
 	 * @returns 动态模块
 	 */
-	static forRoot(config?: { enableQualityScoring?: boolean; enableDimensionCalculation?: boolean; enableReportGeneration?: boolean }) {
+	static forRoot(config?: {
+		enableQualityScoring?: boolean;
+		enableDimensionCalculation?: boolean;
+		enableReportGeneration?: boolean;
+	}) {
 		return {
 			module: AnalyticsModule,
 			providers: [

@@ -65,4 +65,3 @@ describe('InMemoryOutbox', () => {
 		expect(pendingFuture).toHaveLength(1);
 	});
 });
-

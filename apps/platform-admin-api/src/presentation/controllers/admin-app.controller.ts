@@ -25,4 +25,3 @@ export class AdminAppController {
 		return { ok: true };
 	}
 }
-

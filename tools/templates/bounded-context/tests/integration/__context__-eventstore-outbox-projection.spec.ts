@@ -70,4 +70,3 @@ describe('__context__ end-to-end (EventStore + Outbox + Projection) (模板)', (
 		}
 	});
 });
-
