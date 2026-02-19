@@ -1,3 +1,4 @@
+import { AggregateRoot } from '@oksai/event-store';
 import { DomainException } from '../exceptions/domain.exception';
 import type { DomainEvent } from '../events/domain-event';
 import { TenantCreatedEvent } from '../events/tenant-created.event';
@@ -15,6 +16,11 @@ interface TenantMember {
 }
 
 /**
+ * @description 租户领域事件类型
+ */
+type TenantEvent = DomainEvent;
+
+/**
  * @description
  * Tenant 聚合根（Rich Model 风格）。
  *
@@ -27,19 +33,14 @@ interface TenantMember {
  * - tenantId 必须来自 CLS（由应用层保证）
  * - 成员数不能超过配置上限
  */
-export class TenantAggregate {
-	private readonly _domainEvents: DomainEvent[] = [];
-	private committedVersion = 0;
-	private version = 0;
-
+export class TenantAggregate extends AggregateRoot<TenantEvent> {
 	private readonly _id: TenantId;
 	private _name: TenantName;
 	private _settings: TenantSettings;
 	private _members: TenantMember[] = [];
-	private _createdAt!: Date;
-	private _updatedAt!: Date;
 
 	private constructor(id: TenantId, name: TenantName, settings: TenantSettings) {
+		super();
 		this._id = id;
 		this._name = name;
 		this._settings = settings;
@@ -58,12 +59,8 @@ export class TenantAggregate {
 	static create(id: TenantId, name: TenantName, settings: TenantSettings): TenantAggregate {
 		const agg = new TenantAggregate(id, name, settings);
 
-		// Rich Model：直接设置状态
-		const now = new Date();
-		agg._createdAt = now;
-		agg._updatedAt = now;
+		agg.initAuditTimestamps();
 
-		// 记录领域事件
 		agg.addDomainEvent(new TenantCreatedEvent(id.toString(), name.toString()));
 
 		return agg;
@@ -81,16 +78,13 @@ export class TenantAggregate {
 	 * @throws {DomainException} 当事件流非法或缺少创建事件时抛出
 	 */
 	static rehydrate(id: TenantId, events: DomainEvent[]): TenantAggregate {
-		// 用默认值初始化；后续由 apply 逐步修正
 		const agg = new TenantAggregate(id, TenantName.of('__rehydrate__'), TenantSettings.default());
 		for (const e of events) {
 			agg.apply(e);
 			agg.version += 1;
 		}
-		agg.committedVersion = agg.version;
-		agg._domainEvents.splice(0, agg._domainEvents.length);
+		agg.resetEventStateAfterRehydrate();
 
-		// 基础校验：必须出现创建事件
 		if (agg._name.getValue() === '__rehydrate__') {
 			throw new DomainException(`租户事件流非法：缺少创建事件（tenantId=${id.toString()}）。`);
 		}
@@ -116,12 +110,10 @@ export class TenantAggregate {
 			throw new DomainException('userId 不能为空');
 		}
 
-		// 幂等检查：成员不能重复
 		if (this._members.some((m) => m.userId === uid)) {
 			return;
 		}
 
-		// 使用规格进行业务规则校验
 		const canAddMember = new CanAddMemberSpecification();
 		if (!canAddMember.isSatisfiedBy(this)) {
 			throw new DomainException(
@@ -129,12 +121,8 @@ export class TenantAggregate {
 			);
 		}
 
-		// Rich Model：直接修改状态
 		this._members.push({ userId: uid, addedAt: new Date() });
-		this._updatedAt = new Date();
-
-		// 可选：记录领域事件
-		// this.addDomainEvent(new TenantMemberAddedEvent(this._id.toString(), { userId: uid }));
+		this.markUpdated();
 	}
 
 	/**
@@ -155,7 +143,7 @@ export class TenantAggregate {
 		const index = this._members.findIndex((m) => m.userId === uid);
 		if (index >= 0) {
 			this._members.splice(index, 1);
-			this._updatedAt = new Date();
+			this.markUpdated();
 		}
 	}
 
@@ -165,11 +153,10 @@ export class TenantAggregate {
 	 * @param name - 新名称
 	 */
 	updateName(name: TenantName): void {
-		// 幂等检查
 		if (this._name.equals(name)) return;
 
 		this._name = name;
-		this._updatedAt = new Date();
+		this.markUpdated();
 	}
 
 	/**
@@ -182,18 +169,16 @@ export class TenantAggregate {
 	 * @throws {DomainException} 当新上限小于当前成员数时抛出
 	 */
 	updateSettings(settings: TenantSettings): void {
-		// 业务规则：新上限不能小于当前成员数
 		if (settings.getMaxMembers() < this._members.length) {
 			throw new DomainException(
 				`新成员上限（${settings.getMaxMembers()}）不能小于当前成员数（${this._members.length}）`
 			);
 		}
 
-		// 幂等检查
 		if (this._settings.equals(settings)) return;
 
 		this._settings = settings;
-		this._updatedAt = new Date();
+		this.markUpdated();
 	}
 
 	// ==================== 查询方法 ====================
@@ -219,51 +204,12 @@ export class TenantAggregate {
 		return this._members.map((m) => m.userId);
 	}
 
-	// ==================== 事件管理 ====================
-
-	/**
-	 * @description 获取未提交事件快照（不会清空）
-	 */
-	getUncommittedEvents(): DomainEvent[] {
-		return [...this._domainEvents];
-	}
-
-	/**
-	 * @description 提交未提交事件（清空缓冲并推进 committedVersion）
-	 */
-	commitUncommittedEvents(): void {
-		this._domainEvents.splice(0, this._domainEvents.length);
-		this.committedVersion = this.version;
-	}
-
-	/**
-	 * @description 获取并清空未提交事件（供应用层持久化/发布）
-	 */
-	pullUncommittedEvents(): DomainEvent[] {
-		const events = this.getUncommittedEvents();
-		this.commitUncommittedEvents();
-		return events;
-	}
-
-	/**
-	 * @description 获取当前已提交版本（用于 expectedVersion）
-	 */
-	getExpectedVersion(): number {
-		return this.committedVersion;
-	}
-
-	/**
-	 * @description 添加领域事件
-	 */
-	private addDomainEvent(event: DomainEvent): void {
-		this._domainEvents.push(event);
-		this.version += 1;
-	}
+	// ==================== 事件应用（用于 rehydrate） ====================
 
 	/**
 	 * @description 应用事件（用于 rehydrate）
 	 */
-	private apply(event: DomainEvent): void {
+	protected apply(event: DomainEvent): void {
 		switch (event.eventType) {
 			case 'TenantCreated': {
 				const data = event.eventData as { name?: string };
@@ -289,13 +235,5 @@ export class TenantAggregate {
 
 	get settings(): TenantSettings {
 		return this._settings;
-	}
-
-	get createdAt(): Date {
-		return this._createdAt;
-	}
-
-	get updatedAt(): Date {
-		return this._updatedAt;
 	}
 }

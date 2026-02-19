@@ -1,4 +1,4 @@
-import type { EventStoreDomainEvent } from '@oksai/event-store';
+import { AnalyzableAggregateRoot, type EventStoreDomainEvent } from '@oksai/event-store';
 import { BillingId, Money, BillingStatus, BillingType } from '../value-objects';
 import {
 	BillingCanBePaidSpecification,
@@ -22,23 +22,36 @@ export class BillingException extends Error {
 }
 
 /**
- * @description 账单聚合根（Rich Model 风格）
+ * @description 账单聚合根（Rich Model 风格 + 数据分析能力）
+ *
+ * 继承 AnalyzableAggregateRoot，获得数据分析能力：
+ * - 标签管理：为账单打标签（如 "高价值"、"待跟进"）
+ * - 业务分类：设置账单分类（如 "订阅"、"一次性"、"退款"）
+ * - 分析维度：设置时间、金额、货币等维度
+ * - 数据质量：自动计算数据质量分数
  *
  * 职责：
  * - 管理账单生命周期（创建、支付、失败、退款）
  * - 维护账单状态一致性
  * - 记录领域事件
+ * - 提供数据分析维度
  *
  * 强约束：
  * - tenantId 必须来自 CLS（由应用层保证）
  * - 金额不能为负数
  * - 状态转换必须符合业务规则
+ *
+ * @example
+ * ```typescript
+ * // 创建账单时设置分析维度
+ * const billing = BillingAggregate.create(id, tenantId, amount, type, desc);
+ * billing.setCategory('subscription');
+ * billing.addTag('high-value');
+ * billing.setAnalyticsDimension('currency', 'CNY');
+ * billing.setAnalyticsDimension('amount_range', '1000-5000');
+ * ```
  */
-export class BillingAggregate {
-	private readonly _domainEvents: BillingEvent[] = [];
-	private committedVersion = 0;
-	private version = 0;
-
+export class BillingAggregate extends AnalyzableAggregateRoot<BillingEvent> {
 	private readonly _id: BillingId;
 	private readonly _tenantId: string;
 	private readonly _amount: Money;
@@ -49,8 +62,6 @@ export class BillingAggregate {
 	private _failedAt?: Date;
 	private _refundAmount?: number;
 	private _retryCount: number = 0;
-	private _createdAt!: Date;
-	private _updatedAt!: Date;
 
 	private constructor(
 		id: BillingId,
@@ -60,6 +71,7 @@ export class BillingAggregate {
 		description: string,
 		status: BillingStatus
 	) {
+		super();
 		this._id = id;
 		this._tenantId = tenantId;
 		this._amount = amount;
@@ -89,16 +101,33 @@ export class BillingAggregate {
 	): BillingAggregate {
 		const billing = new BillingAggregate(id, tenantId, amount, billingType, description, BillingStatus.PENDING);
 
-		// Rich Model：直接设置状态
-		const now = new Date();
-		billing._createdAt = now;
-		billing._updatedAt = now;
+		billing.initAuditTimestamps();
 
-		// 记录领域事件
+		// 设置分析维度
+		billing.setAnalyticsDimension('currency', amount.getCurrency());
+		billing.setAnalyticsDimension('amount', amount.getAmount());
+		billing.setAnalyticsDimension('billing_type', billingType);
+		billing.setAnalyticsDimension('status', BillingStatus.PENDING);
+
+		// 根据账单类型设置默认分类
+		if (billingType === BillingType.SUBSCRIPTION) {
+			billing.setCategory('subscription');
+		} else if (billingType === BillingType.ONE_TIME) {
+			billing.setCategory('one-time');
+		}
+
+		// 根据金额添加标签
+		if (amount.getAmount() >= 1000) {
+			billing.addTag('high-value');
+		}
+		if (amount.getAmount() < 100) {
+			billing.addTag('low-value');
+		}
+
 		billing.addDomainEvent({
 			eventType: 'BillingCreated',
 			aggregateId: id.toString(),
-			occurredAt: now,
+			occurredAt: billing._createdAt,
 			eventData: {
 				tenantId,
 				amount: amount.getAmount(),
@@ -135,12 +164,16 @@ export class BillingAggregate {
 			BillingStatus.PENDING
 		);
 
+		// 重建分析维度
+		billing.setAnalyticsDimension('currency', data.currency);
+		billing.setAnalyticsDimension('amount', data.amount);
+		billing.setAnalyticsDimension('billing_type', data.billingType);
+
 		for (const event of events) {
 			billing.apply(event);
 			billing.version += 1;
 		}
-		billing.committedVersion = billing.version;
-		billing._domainEvents.splice(0, billing._domainEvents.length);
+		billing.resetEventStateAfterRehydrate();
 
 		return billing;
 	}
@@ -158,18 +191,19 @@ export class BillingAggregate {
 	 * @throws BillingException 状态不允许时抛出
 	 */
 	markAsPaid(paymentMethod: string, transactionId: string): void {
-		// 使用规格进行业务规则校验
 		const canBePaid = new BillingCanBePaidSpecification();
 		if (!canBePaid.isSatisfiedBy(this)) {
 			throw new BillingException(`只有待支付状态的账单才能标记为已支付，当前状态：${this._status}。`);
 		}
 
-		// Rich Model：直接修改状态
 		this._status = BillingStatus.PAID;
 		this._paidAt = new Date();
-		this._updatedAt = this._paidAt;
+		this.markUpdated();
 
-		// 记录领域事件
+		// 更新分析维度
+		this.setAnalyticsDimension('status', BillingStatus.PAID);
+		this.addTag('paid');
+
 		this.addDomainEvent({
 			eventType: 'BillingPaid',
 			aggregateId: this._id.toString(),
@@ -193,19 +227,16 @@ export class BillingAggregate {
 	 * @throws BillingException 状态不允许时抛出
 	 */
 	markAsFailed(reason: string): void {
-		// 使用规格进行业务规则校验
 		const canBePaid = new BillingCanBePaidSpecification();
 		if (!canBePaid.isSatisfiedBy(this)) {
 			throw new BillingException(`只有待支付状态的账单才能标记为失败，当前状态：${this._status}。`);
 		}
 
-		// Rich Model：直接修改状态
 		this._status = BillingStatus.FAILED;
 		this._failedAt = new Date();
 		this._retryCount += 1;
-		this._updatedAt = this._failedAt;
+		this.markUpdated();
 
-		// 记录领域事件
 		this.addDomainEvent({
 			eventType: 'BillingFailed',
 			aggregateId: this._id.toString(),
@@ -229,18 +260,15 @@ export class BillingAggregate {
 	 * @throws BillingException 状态不允许时抛出
 	 */
 	refund(reason: string): void {
-		// 使用规格进行业务规则校验
 		const canBeRefunded = new BillingCanBeRefundedSpecification();
 		if (!canBeRefunded.isSatisfiedBy(this)) {
 			throw new BillingException(`只有已支付状态的账单才能退款，当前状态：${this._status}。`);
 		}
 
-		// Rich Model：直接修改状态
 		this._status = BillingStatus.REFUNDED;
 		this._refundAmount = this._amount.getAmount();
-		this._updatedAt = new Date();
+		this.markUpdated();
 
-		// 记录领域事件
 		this.addDomainEvent({
 			eventType: 'BillingRefunded',
 			aggregateId: this._id.toString(),
@@ -263,17 +291,14 @@ export class BillingAggregate {
 	 * @throws BillingException 状态不允许时抛出
 	 */
 	cancel(): void {
-		// 使用规格进行业务规则校验
 		const canBeCancelled = new BillingCanBeCancelledSpecification();
 		if (!canBeCancelled.isSatisfiedBy(this)) {
 			throw new BillingException(`只有待支付状态的账单才能取消，当前状态：${this._status}。`);
 		}
 
-		// Rich Model：直接修改状态
 		this._status = BillingStatus.CANCELLED;
-		this._updatedAt = new Date();
+		this.markUpdated();
 
-		// 记录领域事件
 		this.addDomainEvent({
 			eventType: 'BillingCancelled',
 			aggregateId: this._id.toString(),
@@ -317,51 +342,12 @@ export class BillingAggregate {
 		);
 	}
 
-	// ==================== 事件管理 ====================
-
-	/**
-	 * @description 获取未提交事件快照（不会清空）
-	 */
-	getUncommittedEvents(): BillingEvent[] {
-		return [...this._domainEvents];
-	}
-
-	/**
-	 * @description 提交未提交事件（清空缓冲并推进 committedVersion）
-	 */
-	commitUncommittedEvents(): void {
-		this._domainEvents.splice(0, this._domainEvents.length);
-		this.committedVersion = this.version;
-	}
-
-	/**
-	 * @description 获取当前已提交版本（用于 expectedVersion）
-	 */
-	getExpectedVersion(): number {
-		return this.committedVersion;
-	}
-
-	/**
-	 * @description 获取并清空未提交事件
-	 */
-	pullUncommittedEvents(): BillingEvent[] {
-		const events = this.getUncommittedEvents();
-		this.commitUncommittedEvents();
-		return events;
-	}
-
-	/**
-	 * @description 添加领域事件
-	 */
-	private addDomainEvent(event: BillingEvent): void {
-		this._domainEvents.push(event);
-		this.version += 1;
-	}
+	// ==================== 事件应用（用于 rehydrate） ====================
 
 	/**
 	 * @description 应用事件（用于 rehydrate）
 	 */
-	private apply(event: EventStoreDomainEvent): void {
+	protected apply(event: EventStoreDomainEvent): void {
 		const data = event.eventData as any;
 
 		switch (event.eventType) {
@@ -437,14 +423,6 @@ export class BillingAggregate {
 
 	get refundAmount(): number | undefined {
 		return this._refundAmount;
-	}
-
-	get createdAt(): Date {
-		return this._createdAt;
-	}
-
-	get updatedAt(): Date {
-		return this._updatedAt;
 	}
 
 	// 兼容旧 API

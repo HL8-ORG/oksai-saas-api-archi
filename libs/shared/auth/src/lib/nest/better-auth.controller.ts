@@ -6,25 +6,45 @@ import { OKSAI_BETTER_AUTH_TOKEN } from './tokens';
 import { fromNodeHeaders } from './utils/node-headers';
 
 /**
- * @description Better Auth 路由转发控制器（Nest(Fastify) 适配）
+ * Better Auth 路由转发控制器（NestJS + Fastify 适配）
  *
- * 说明：
- * - Better Auth 默认使用 `/api/auth/*` 路由（可通过 Better Auth 选项叠加 basePath）
- * - 由于 Fastify 可能已提前解析 body，本控制器会手动构造 `Request` 调用 `auth.handler()`
+ * 将所有 `/api/auth/*` 路由的请求转发到 Better Auth handler 进行处理。
+ * 由于 Fastify 可能已提前解析 body，本控制器会手动构造标准 Web Request 对象调用 Better Auth。
+ *
+ * @description
+ * 支持的功能：
+ * - 用户注册（sign-up/email）
+ * - 用户登录（sign-in/email）
+ * - 会话管理（get-session）
+ * - 账户管理相关操作
+ *
+ * 事件发布：
+ * - 用户注册成功后，通过 Outbox 模式发布 `AuthUserSignedUp` 集成事件
+ *
+ * @example
+ * ```typescript
+ * // 路由示例
+ * POST /api/auth/sign-up/email  - 用户注册
+ * POST /api/auth/sign-in/email  - 用户登录
+ * GET  /api/auth/get-session    - 获取当前会话
+ * POST /api/auth/sign-out       - 用户登出
+ * ```
+ *
+ * @see {@link setupAuthModule} 认证模块配置
  */
 @Controller('api/auth')
 export class BetterAuthController {
 	constructor(
-		@Inject(OKSAI_BETTER_AUTH_TOKEN) auth: Auth,
+		@Inject(OKSAI_BETTER_AUTH_TOKEN) private readonly auth: Auth,
 		@Optional() @Inject(OKSAI_OUTBOX_TOKEN) private readonly outbox?: IOutbox
-	) {
-		this.auth = auth;
-	}
-
-	private readonly auth: Auth;
+	) {}
 
 	/**
-	 * @description 捕获并转发所有 /api/auth/* 请求到 Better Auth handler
+	 * 捕获并转发所有 /api/auth/* 请求到 Better Auth handler
+	 *
+	 * @param req - HTTP 请求对象（支持 Fastify 原生请求和标准请求）
+	 * @param reply - HTTP 响应对象（支持 Fastify Reply）
+	 * @returns Promise<void>
 	 */
 	@All('*')
 	async handle(@Req() req: unknown, @Res() reply: unknown): Promise<void> {
@@ -93,6 +113,25 @@ export class BetterAuthController {
 		anyReply?.send?.(Buffer.from(buf));
 	}
 
+	/**
+	 * 尝试在用户注册成功后发布集成事件
+	 *
+	 * 当检测到 sign-up/email 路由且响应包含用户信息时，
+	 * 通过 Outbox 模式发布 `AuthUserSignedUp` 事件，供其他模块订阅处理。
+	 *
+	 * @param url - 请求 URL
+	 * @param json - 响应 JSON 数据
+	 * @returns Promise<void>
+	 *
+	 * @example
+	 * 发布的事件结构：
+	 * ```typescript
+	 * {
+	 *   eventType: 'AuthUserSignedUp',
+	 *   payload: { userId: 'xxx', email: 'user@example.com' }
+	 * }
+	 * ```
+	 */
 	private async tryAppendAuthSignedUpEvent(url: string, json: any): Promise<void> {
 		if (!this.outbox) return;
 		if (!url.includes('/api/auth/sign-up/email')) return;

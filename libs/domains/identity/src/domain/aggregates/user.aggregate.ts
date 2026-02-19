@@ -1,3 +1,4 @@
+import { AggregateRoot, type EventStoreDomainEvent } from '@oksai/event-store';
 import type { DomainEvent } from '../events/domain-event';
 import { Email } from '../value-objects/email';
 import { UserId } from '../value-objects/user-id';
@@ -19,6 +20,11 @@ import {
 import { CanAssignRoleSpecification, CanDisableUserSpecification } from '../specifications';
 
 /**
+ * @description 用户领域事件类型
+ */
+type UserEvent = DomainEvent;
+
+/**
  * @description 用户聚合根（Rich Model 风格）
  *
  * 业务规则内聚在实体方法中，直接修改状态，同时记录领域事件。
@@ -32,21 +38,16 @@ import { CanAssignRoleSpecification, CanDisableUserSpecification } from '../spec
  * - 领域层不存储密码明文/哈希；认证交给 Better Auth 适配层
  * - tenantId 必须来自 CLS（由应用层保证）
  */
-export class UserAggregate {
-	private readonly _domainEvents: DomainEvent[] = [];
-	private committedVersion = 0;
-	private version = 0;
-
+export class UserAggregate extends AggregateRoot<UserEvent> {
 	private readonly _id: UserId;
 	private _email!: Email;
 	private _disabled = false;
 	private _disabledReason?: string;
 	private _roles: RoleKey[] = [];
 	private _tenantMemberships: TenantId[] = [];
-	private _createdAt!: Date;
-	private _updatedAt!: Date;
 
 	private constructor(id: UserId) {
+		super();
 		this._id = id;
 	}
 
@@ -64,14 +65,10 @@ export class UserAggregate {
 		const emailVo = Email.of(email);
 		const agg = new UserAggregate(userId);
 
-		// Rich Model：直接设置状态
-		const now = new Date();
+		agg.initAuditTimestamps();
 		agg._email = emailVo;
 		agg._disabled = false;
-		agg._createdAt = now;
-		agg._updatedAt = now;
 
-		// 记录领域事件（用于审计/集成）
 		agg.addDomainEvent(new UserRegisteredEvent(userId.getValue(), { email: emailVo.getValue() }));
 
 		return agg;
@@ -93,8 +90,7 @@ export class UserAggregate {
 			agg.apply(e);
 			agg.version += 1;
 		}
-		agg.committedVersion = agg.version;
-		agg._domainEvents.splice(0, agg._domainEvents.length);
+		agg.resetEventStateAfterRehydrate();
 		return agg;
 	}
 
@@ -111,10 +107,8 @@ export class UserAggregate {
 	 * @throws UserCannotBeDisabledException 当不满足禁用条件时
 	 */
 	disable(reason?: string): void {
-		// 幂等检查
 		if (this._disabled) return;
 
-		// 使用规格进行业务规则校验
 		const canDisable = new CanDisableUserSpecification();
 		if (!canDisable.isSatisfiedBy(this)) {
 			if (this.isTenantOwner()) {
@@ -126,12 +120,10 @@ export class UserAggregate {
 			throw new UserCannotBeDisabledException(this._id.getValue(), '不满足禁用条件');
 		}
 
-		// Rich Model：直接修改状态
 		this._disabled = true;
 		this._disabledReason = reason;
-		this._updatedAt = new Date();
+		this.markUpdated();
 
-		// 记录领域事件
 		this.addDomainEvent(new UserDisabledEvent(this._id.getValue(), { reason }));
 	}
 
@@ -142,15 +134,12 @@ export class UserAggregate {
 	 * - 幂等操作：已启用则无操作
 	 */
 	enable(): void {
-		// 幂等检查
 		if (!this._disabled) return;
 
-		// Rich Model：直接修改状态
 		this._disabled = false;
 		this._disabledReason = undefined;
-		this._updatedAt = new Date();
+		this.markUpdated();
 
-		// 记录领域事件
 		this.addDomainEvent(new UserEnabledEvent(this._id.getValue(), {}));
 	}
 
@@ -168,7 +157,6 @@ export class UserAggregate {
 	 * @throws UserNotEligibleForRoleException 用户不满足角色分配条件时
 	 */
 	grantRole(roleKey: RoleKey): void {
-		// 使用规格进行业务规则校验
 		const canAssignRole = new CanAssignRoleSpecification(roleKey);
 
 		if (!canAssignRole.isSatisfiedBy(this)) {
@@ -181,11 +169,9 @@ export class UserAggregate {
 			throw new UserNotEligibleForRoleException(this._id.getValue(), roleKey.getValue());
 		}
 
-		// Rich Model：直接修改状态
 		this._roles.push(roleKey);
-		this._updatedAt = new Date();
+		this.markUpdated();
 
-		// 记录领域事件
 		this.addDomainEvent(
 			new RoleGrantedToUserEvent(this._id.getValue(), { tenantId: '', role: roleKey.getValue() })
 		);
@@ -204,21 +190,18 @@ export class UserAggregate {
 	 * @throws CannotRemoveLastRoleException 尝试移除最后一个角色时
 	 */
 	revokeRole(roleKey: RoleKey): void {
-		// 业务规则：用户必须活跃
 		if (this._disabled) {
 			throw new InactiveUserException('撤销角色');
 		}
 
-		// 业务规则：不能移除最后一个角色
 		if (this._roles.length <= 1) {
 			throw new CannotRemoveLastRoleException(this._id.getValue());
 		}
 
-		// Rich Model：直接修改状态
 		const index = this._roles.findIndex((r) => r.equals(roleKey));
 		if (index >= 0) {
 			this._roles.splice(index, 1);
-			this._updatedAt = new Date();
+			this.markUpdated();
 		}
 	}
 
@@ -228,11 +211,10 @@ export class UserAggregate {
 	 * @param tenantId - 租户 ID
 	 */
 	addToTenant(tenantId: TenantId): void {
-		// 幂等检查
 		if (this._tenantMemberships.some((t) => t.equals(tenantId))) return;
 
 		this._tenantMemberships.push(tenantId);
-		this._updatedAt = new Date();
+		this.markUpdated();
 
 		this.addDomainEvent(new UserAddedToTenantEvent(this._id.getValue(), { tenantId: tenantId.getValue() }));
 	}
@@ -278,57 +260,16 @@ export class UserAggregate {
 	 * @description 检查是否可以被分配管理员角色
 	 */
 	private canBeAssignedAdminRole(): boolean {
-		// 业务规则：用户必须有至少一个角色
 		if (this._roles.length === 0) return false;
-		// 业务规则：只有现有管理员才能分配管理员角色
 		return this.isAdminLevel();
 	}
 
-	// ==================== 事件管理 ====================
-
-	/**
-	 * @description 获取未提交事件快照（不会清空）
-	 */
-	getUncommittedEvents(): DomainEvent[] {
-		return [...this._domainEvents];
-	}
-
-	/**
-	 * @description 提交未提交事件（清空缓冲并推进 committedVersion）
-	 */
-	commitUncommittedEvents(): void {
-		this._domainEvents.splice(0, this._domainEvents.length);
-		this.committedVersion = this.version;
-	}
-
-	/**
-	 * @description 获取并清空未提交事件
-	 */
-	pullUncommittedEvents(): DomainEvent[] {
-		const events = this.getUncommittedEvents();
-		this.commitUncommittedEvents();
-		return events;
-	}
-
-	/**
-	 * @description 获取当前已提交版本（用于 expectedVersion）
-	 */
-	getExpectedVersion(): number {
-		return this.committedVersion;
-	}
-
-	/**
-	 * @description 添加领域事件
-	 */
-	private addDomainEvent(event: DomainEvent): void {
-		this._domainEvents.push(event);
-		this.version += 1;
-	}
+	// ==================== 事件应用（用于 rehydrate） ====================
 
 	/**
 	 * @description 应用事件（用于 rehydrate）
 	 */
-	private apply(event: DomainEvent): void {
+	protected apply(event: DomainEvent): void {
 		switch (event.eventType) {
 			case 'UserRegistered': {
 				const data = event.eventData as { email?: string };
@@ -396,13 +337,5 @@ export class UserAggregate {
 
 	get tenantMemberships(): TenantId[] {
 		return [...this._tenantMemberships];
-	}
-
-	get createdAt(): Date {
-		return this._createdAt;
-	}
-
-	get updatedAt(): Date {
-		return this._updatedAt;
 	}
 }

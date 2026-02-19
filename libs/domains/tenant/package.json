@@ -21,6 +21,7 @@
 		"@mikro-orm/core": "catalog:",
 		"@mikro-orm/nestjs": "catalog:",
 		"@mikro-orm/postgresql": "catalog:",
+		"@oksai/aggregate-metadata": "workspace:*",
 		"@oksai/context": "workspace:*",
 		"@oksai/cqrs": "workspace:*",
 		"@oksai/database": "workspace:*",

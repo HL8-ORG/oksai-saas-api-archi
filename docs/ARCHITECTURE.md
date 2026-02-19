@@ -187,7 +187,127 @@ class TenantId {
 }
 ```
 
-### 2.4 领域事件
+### 2.4 聚合根基类（AggregateRoot）
+
+**【强约束】** 所有聚合根必须继承 `@oksai/event-store` 提供的 `AggregateRoot` 基类。
+
+**基类提供的能力**：
+
+| 能力         | 方法/属性                                                               | 说明           |
+| ------------ | ----------------------------------------------------------------------- | -------------- |
+| 事件版本管理 | `version`、`committedVersion`、`getExpectedVersion()`                   | 乐观并发控制   |
+| 领域事件管理 | `addDomainEvent()`、`getUncommittedEvents()`、`pullUncommittedEvents()` | 事件收集与提交 |
+| 审计时间戳   | `createdAt`、`updatedAt`、`initAuditTimestamps()`、`markUpdated()`      | 自动时间戳管理 |
+| 审计追踪     | `createdBy`、`updatedBy`、`setCreatedBy()`、`setUpdatedBy()`            | 操作者追踪     |
+| 软删除       | `softDelete()`、`restore()`、`isDeleted()`                              | 数据安全策略   |
+| 事件溯源     | `apply()`、`resetEventStateAfterRehydrate()`                            | 从事件重建聚合 |
+
+**聚合根示例（使用基类）**：
+
+```typescript
+import { AggregateRoot, type EventStoreDomainEvent } from '@oksai/event-store';
+
+// 定义领域事件类型
+type TenantEvent = EventStoreDomainEvent;
+
+// 聚合根继承基类
+class TenantAggregate extends AggregateRoot<TenantEvent> {
+	private readonly _id: TenantId;
+	private _name: TenantName;
+	private _members: TenantMember[] = [];
+
+	private constructor(id: TenantId, name: TenantName) {
+		super();
+		this._id = id;
+		this._name = name;
+	}
+
+	// 工厂方法
+	static create(id: TenantId, name: TenantName): TenantAggregate {
+		const tenant = new TenantAggregate(id, name);
+		tenant.initAuditTimestamps(); // 初始化审计时间戳
+		tenant.addDomainEvent({
+			eventType: 'TenantCreated',
+			aggregateId: id.toString(),
+			occurredAt: tenant.createdAt,
+			eventData: { name: name.toString() },
+			schemaVersion: 1
+		});
+		return tenant;
+	}
+
+	// 从事件重建
+	static rehydrate(id: TenantId, events: TenantEvent[]): TenantAggregate {
+		const tenant = new TenantAggregate(id, TenantName.of('__rehydrate__'));
+		for (const e of events) {
+			tenant.apply(e);
+			tenant.version += 1;
+		}
+		tenant.resetEventStateAfterRehydrate();
+		return tenant;
+	}
+
+	// 业务方法
+	addMember(member: TenantMember): void {
+		if (this._members.length >= this.settings.maxMembers) {
+			throw new DomainException('超过租户成员上限');
+		}
+		this._members.push(member);
+		this.markUpdated(); // 自动更新时间戳
+		this.addDomainEvent({
+			eventType: 'TenantMemberAdded',
+			aggregateId: this._id.toString(),
+			occurredAt: this.updatedAt,
+			eventData: { memberId: member.id },
+			schemaVersion: 1
+		});
+	}
+
+	// 必须实现：事件应用（用于 rehydrate）
+	protected apply(event: TenantEvent): void {
+		switch (event.eventType) {
+			case 'TenantCreated':
+				this._name = TenantName.of(event.eventData.name);
+				this._createdAt = event.occurredAt;
+				this._updatedAt = event.occurredAt;
+				break;
+			case 'TenantMemberAdded':
+				this._members.push({ id: event.eventData.memberId });
+				this._updatedAt = event.occurredAt;
+				break;
+		}
+	}
+
+	// Getters
+	get id(): TenantId {
+		return this._id;
+	}
+	get name(): TenantName {
+		return this._name;
+	}
+}
+```
+
+**审计信息获取**：
+
+```typescript
+const tenant = TenantAggregate.create(id, name);
+tenant.setCreatedBy('user-123');
+
+// 获取完整审计信息
+const auditInfo = tenant.getAuditInfo();
+// {
+//   createdAt: Date,
+//   updatedAt: Date,
+//   createdBy: 'user-123',
+//   updatedBy: undefined,
+//   isDeleted: false,
+//   deletedAt: undefined,
+//   deletedBy: undefined
+// }
+```
+
+### 2.5 领域事件
 
 - 描述领域内发生的重要业务事件
 - 事件命名使用过去式（`UserCreated`, `OrderPaid`）
@@ -920,31 +1040,53 @@ InfrastructureException（基础设施异常）
 **聚合设计**：
 
 ```typescript
-// 用户聚合
-class UserAggregate extends AggregateRoot {
-	readonly id: UserId;
-	readonly email: Email;
-	private roles: RoleKey[] = [];
+// 用户聚合（继承 AggregateRoot 基类）
+class UserAggregate extends AggregateRoot<UserEvent> {
+	private readonly _id: UserId;
+	private _email!: Email;
+	private _roles: RoleKey[] = [];
 
-	static register(id: UserId, email: Email): UserAggregate {
-		const user = new UserAggregate(id, email);
-		user.record(new UserRegisteredEvent(id, email));
-		return user;
+	static register(id: string, email: string): UserAggregate {
+		const agg = new UserAggregate(UserId.of(id));
+		agg.initAuditTimestamps();
+		agg._email = Email.of(email);
+		agg.addDomainEvent(new UserRegisteredEvent(id, { email }));
+		return agg;
 	}
 
-	grantRole(role: RoleKey): DomainEvent[] {
-		if (this.roles.includes(role)) return [];
-		this.roles.push(role);
-		return [new RoleGrantedToUserEvent(this.id, role)];
+	grantRole(role: RoleKey): void {
+		if (this._roles.some((r) => r.equals(role))) return;
+		this._roles.push(role);
+		this.markUpdated();
+		this.addDomainEvent(new RoleGrantedToUserEvent(this._id.getValue(), { role: role.getValue() }));
+	}
+
+	protected apply(event: UserEvent): void {
+		/* 事件应用逻辑 */
 	}
 }
 
 // 租户成员关系聚合
-class TenantMembershipAggregate extends AggregateRoot {
-	readonly tenantId: TenantId;
-	readonly userId: UserId;
-	readonly role: RoleKey;
-	readonly joinedAt: Date;
+class TenantMembershipAggregate extends AggregateRoot<TenantMembershipEvent> {
+	private roles: RoleKey[] = [];
+
+	constructor(
+		readonly tenantId: string,
+		readonly userId: string
+	) {
+		super();
+	}
+
+	static create(tenantId: string, userId: string): TenantMembershipAggregate {
+		const agg = new TenantMembershipAggregate(tenantId, userId);
+		agg.initAuditTimestamps();
+		agg.addDomainEvent(new UserAddedToTenantEvent(`${tenantId}:${userId}`, { tenantId }));
+		return agg;
+	}
+
+	protected apply(event: TenantMembershipEvent): void {
+		/* 事件应用逻辑 */
+	}
 }
 ```
 
@@ -977,16 +1119,29 @@ class TenantMembershipAggregate extends AggregateRoot {
 **聚合设计**：
 
 ```typescript
-class TenantAggregate extends AggregateRoot {
-	readonly id: TenantId;
-	private name: TenantName;
-	private settings: TenantSettings;
-	private status: TenantStatus;
+class TenantAggregate extends AggregateRoot<TenantEvent> {
+	private readonly _id: TenantId;
+	private _name: TenantName;
+	private _settings: TenantSettings;
+	private _members: TenantMember[] = [];
 
 	static create(id: TenantId, name: TenantName, settings: TenantSettings): TenantAggregate {
-		const tenant = new TenantAggregate(id, name, settings, TenantStatus.ACTIVE);
-		tenant.record(new TenantCreatedEvent(id, name, settings));
+		const tenant = new TenantAggregate(id, name, settings);
+		tenant.initAuditTimestamps();
+		tenant.addDomainEvent(new TenantCreatedEvent(id.toString(), name.toString()));
 		return tenant;
+	}
+
+	addMember(userId: string): void {
+		if (this._members.length >= this._settings.getMaxMembers()) {
+			throw new DomainException('超过租户成员上限');
+		}
+		this._members.push({ userId, addedAt: new Date() });
+		this.markUpdated();
+	}
+
+	protected apply(event: TenantEvent): void {
+		/* 事件应用逻辑 */
 	}
 }
 ```
@@ -1124,7 +1279,7 @@ class BillingAggregate {
 - `@oksai/context`：请求上下文
 - `@oksai/redis`：Redis 客户端和分布式锁
 - `@oksai/database`：数据库装配（MikroORM + PostgreSQL + 迁移执行器，已实现）
-- `@oksai/event-store`：事件存储（PostgreSQL + expectedVersion 乐观并发，已实现）
+- `@oksai/event-store`：事件存储（PostgreSQL + expectedVersion 乐观并发 + AggregateRoot 聚合根基类，已实现）
 - `@oksai/messaging`：消息基础组件（InProc EventBus + Inbox/Outbox + Envelope；Publisher 由装配层注册，已实现）
 - `@oksai/messaging-postgres`：消息可靠性适配器（PgInbox/PgOutbox，已实现）
 - `@oksai/plugin`：插件机制（启动期装配 + 元数据 + 生命周期，已实现）
@@ -1173,6 +1328,8 @@ class BillingAggregate {
 - [x] Identity 上下文聚合设计（UserAggregate、TenantMembershipAggregate）
 - [x] Identity 上下文值对象设计（Email、UserId、TenantId、RoleKey）
 - [x] Identity 上下文领域事件定义（UserRegistered、RoleGrantedToUser）
+- [x] 聚合根基类重构（AggregateRoot 基类 + 审计追踪 + 软删除）
+- [x] 所有聚合根迁移到 AggregateRoot 基类（Billing、User、Tenant、TenantMembership）
 - [ ] Billing/Subscription 上下文领域建模
 - [ ] 领域事件契约文档化
 

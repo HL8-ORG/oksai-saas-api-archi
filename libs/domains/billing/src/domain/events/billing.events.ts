@@ -1,10 +1,10 @@
-import type { IDomainEvent } from '@oksai/event-store';
+import type { EventStoreDomainEvent } from '@oksai/event-store';
 import type { BillingId } from '../value-objects';
 
 /**
  * @description 账单创建事件
  */
-export interface BillingCreatedEvent extends IDomainEvent {
+export interface BillingCreatedEvent extends EventStoreDomainEvent {
 	eventType: 'BillingCreated';
 	aggregateId: string;
 	occurredAt: Date;
@@ -21,7 +21,7 @@ export interface BillingCreatedEvent extends IDomainEvent {
 /**
  * @description 账单支付成功事件
  */
-export interface BillingPaidEvent extends IDomainEvent {
+export interface BillingPaidEvent extends EventStoreDomainEvent {
 	eventType: 'BillingPaid';
 	aggregateId: string;
 	occurredAt: Date;
@@ -36,7 +36,7 @@ export interface BillingPaidEvent extends IDomainEvent {
 /**
  * @description 账单支付失败事件
  */
-export interface BillingFailedEvent extends IDomainEvent {
+export interface BillingFailedEvent extends EventStoreDomainEvent {
 	eventType: 'BillingFailed';
 	aggregateId: string;
 	occurredAt: Date;
@@ -51,7 +51,7 @@ export interface BillingFailedEvent extends IDomainEvent {
 /**
  * @description 账单退款事件
  */
-export interface BillingRefundedEvent extends IDomainEvent {
+export interface BillingRefundedEvent extends EventStoreDomainEvent {
 	eventType: 'BillingRefunded';
 	aggregateId: string;
 	occurredAt: Date;
