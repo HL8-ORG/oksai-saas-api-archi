@@ -10,3 +10,7 @@ export * from './domain-event.base';
 
 // 具体事件
 export * from './tenant-created.event';
+export * from './tenant-activated.event';
+export * from './tenant-suspended.event';
+export * from './member-added.event';
+export * from './member-removed.event';

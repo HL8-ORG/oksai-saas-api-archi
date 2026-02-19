@@ -4,4 +4,7 @@ export * from './lib/event-store.interface';
 export * from './lib/extensions';
 export * from './lib/nest/setup-event-store-module';
 export * from './lib/postgres/pg-event-store';
+export * from './lib/postgres/pg-event-store-enhanced';
 export * from './lib/tokens';
+export * from './lib/projections';
+export * from './lib/serializers';

@@ -59,6 +59,10 @@ export interface LoadStreamParams {
  * - 单聚合事件流
  * - 乐观并发（expectedVersion）
  * - 严格顺序（version 单调递增）
+ *
+ * 扩展能力（Phase 8）：
+ * - 批量事件加载（用于分析场景）
+ * - 事件订阅（用于投影实时同步）
  */
 export interface IEventStore {
 	/**
@@ -74,4 +78,64 @@ export interface IEventStore {
 	 * @param params - 读取参数
 	 */
 	loadStream(params: LoadStreamParams): Promise<{ currentVersion: number; events: StoredEvent[] }>;
+
+	/**
+	 * @description 批量加载事件（用于分析和投影重建）
+	 *
+	 * ⚠️ 此方法用于分析场景，不用于业务逻辑
+	 *
+	 * @param filter - 事件过滤器
+	 * @param options - 加载选项
+	 * @returns 事件列表
+	 */
+	loadAllEvents?(filter?: EventFilter, options?: EventLoadOptions): Promise<StoredEvent[]>;
+
+	/**
+	 * @description 流式加载事件（用于大数据量处理）
+	 *
+	 * 使用 AsyncIterable 支持处理大量事件而不占用过多内存
+	 *
+	 * @param filter - 事件过滤器
+	 * @param options - 加载选项
+	 * @returns 事件异步迭代器
+	 */
+	streamAllEvents?(filter?: EventFilter, options?: EventLoadOptions): AsyncIterable<StoredEvent>;
+
+	/**
+	 * @description 订阅事件流（用于投影实时同步）
+	 *
+	 * @param handler - 事件处理器
+	 * @param filter - 事件过滤器（可选）
+	 * @returns 取消订阅函数
+	 */
+	subscribe?(handler: (event: StoredEvent) => Promise<void>, filter?: EventFilter): () => void;
+}
+
+/**
+ * @description 事件过滤器接口
+ *
+ * 用于 loadAllEvents 场景，支持多维度过滤
+ */
+export interface EventFilter {
+	tenantId?: string;
+	aggregateType?: string;
+	aggregateId?: string;
+	eventType?: string;
+	eventTypes?: string[];
+	from?: Date;
+	to?: Date;
+	fromVersion?: number;
+	batchSize?: number;
+}
+
+/**
+ * @description 事件加载选项
+ *
+ * 控制事件加载行为
+ */
+export interface EventLoadOptions {
+	includeMetadata?: boolean;
+	ascending?: boolean;
+	limit?: number;
+	offset?: number;
 }
